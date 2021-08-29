@@ -4,7 +4,7 @@ A [revolt.chat](https://revolt.chat) API wrapper.
 
 Currently, wip.
 
-For an example, see [examples/example-bot].
+For an example, see [examples/example-bot](examples/example-bot).
 
 ## License
 
