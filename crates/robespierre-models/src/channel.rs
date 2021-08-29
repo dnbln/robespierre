@@ -414,3 +414,30 @@ impl Display for ChannelInviteCode {
 pub struct CreateChannelInviteResponse {
     code: ChannelInviteCode,
 }
+
+#[derive(Debug, Default, Serialize)]
+pub struct MessageFilter {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub before: Option<MessageId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub after: Option<MessageId>,
+    pub sort: MessageFilterSortDirection,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nearby: Option<MessageId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub include_users: Option<bool>,
+}
+
+#[derive(Debug, Serialize)]
+pub enum MessageFilterSortDirection {
+    Latest,
+    Oldest,
+}
+
+impl Default for MessageFilterSortDirection {
+    fn default() -> Self {
+        Self::Latest
+    }
+}

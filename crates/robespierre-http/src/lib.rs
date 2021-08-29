@@ -3,8 +3,11 @@ use std::result::Result as StdResult;
 use reqwest::RequestBuilder;
 use robespierre_models::{
     attachments::AutumnFileId,
-    channel::{CreateChannelInviteResponse, DmChannel, Message, Permissions, ReplyData},
-    id::{ChannelId, RoleId, UserId},
+    channel::{
+        CreateChannelInviteResponse, DmChannel, Message, MessageFilter, Permissions, ReplyData,
+    },
+    id::{ChannelId, MessageId, RoleId, ServerId, UserId},
+    server::{Member, MemberField, PartialMember, PartialServer, Server, ServerField},
     user::{NewRelationshipResponse, Relationship, User, UserEditPatch, UserProfileData},
 };
 
@@ -14,6 +17,9 @@ use crate::utils::{PermissionsUpdateRequest, SendMessageRequest};
 pub enum HttpError {
     #[error("reqwest: {0}")]
     Reqwest(#[from] reqwest::Error),
+
+    #[error("decoding: {0}")]
+    Decoding(#[from] serde_json::Error),
 }
 
 pub type Result<T = ()> = StdResult<T, HttpError>;
@@ -278,6 +284,247 @@ impl Http {
             .json()
             .await?)
     }
+
+    pub async fn fetch_messages(
+        &self,
+        channel: &ChannelId,
+        filter: MessageFilter,
+    ) -> Result<FetchMessagesResult> {
+        let v = self
+            .client
+            .get(ep!("/channels/{}/messages" channel))
+            .auth(&self.auth)
+            .json(&filter)
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<serde_json::Value>()
+            .await?;
+
+        if matches!(&filter.include_users, Some(true)) {
+            Ok(serde_json::from_value(v)?)
+        } else {
+            Ok(FetchMessagesResult {
+                messages: serde_json::from_value(v)?,
+                users: vec![],
+                members: vec![],
+            })
+        }
+    }
+
+    pub async fn fetch_message(&self, channel: &ChannelId, message: &MessageId) -> Result<Message> {
+        Ok(self
+            .client
+            .get(ep!("/channels/{}/messages/{}" channel, message))
+            .auth(&self.auth)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    pub async fn edit_message(
+        &self,
+        channel: &ChannelId,
+        message: &MessageId,
+        content: &str,
+    ) -> Result {
+        #[derive(serde::Serialize)]
+        struct MessagePatch<'a> {
+            content: &'a str,
+        }
+        self.client
+            .patch(ep!("/channels/{}/messages/{}" channel, message))
+            .auth(&self.auth)
+            .json(&MessagePatch { content })
+            .send()
+            .await?
+            .error_for_status()?;
+        Ok(())
+    }
+
+    pub async fn delete_message(&self, channel: &ChannelId, message: &MessageId) -> Result {
+        self.client
+            .delete(ep!("/channels/{}/messages/{}" channel, message))
+            .auth(&self.auth)
+            .send()
+            .await?
+            .error_for_status()?;
+        Ok(())
+    }
+
+    // TODO: groups
+
+    pub async fn fetch_server(&self, server: &ServerId) -> Result<Server> {
+        Ok(self
+            .client
+            .get(ep!("/servers/{}" server))
+            .auth(&self.auth)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    pub async fn edit_server(
+        &self,
+        server_id: &ServerId,
+        server: PartialServer,
+        remove: ServerField,
+    ) -> Result {
+        #[derive(serde::Serialize)]
+        struct ServerPatchRequest {
+            #[serde(flatten)]
+            server: PartialServer,
+            remove: ServerField,
+        }
+
+        self.client
+            .patch(ep!("/servers/{}" server_id))
+            .auth(&self.auth)
+            .json(&ServerPatchRequest { server, remove })
+            .send()
+            .await?
+            .error_for_status()?;
+
+        Ok(())
+    }
+
+    pub async fn delete_server(&self, server_id: &ServerId) -> Result {
+        self.client
+            .delete(ep!("/servers/{}" server_id))
+            .auth(&self.auth)
+            .send()
+            .await?
+            .error_for_status()?;
+
+        Ok(())
+    }
+
+    // TODO create server
+    // TODO create channel
+    // TODO fetch invites
+    // TODO mark server as read
+
+    pub async fn fetch_member(&self, server_id: &ServerId, user_id: &UserId) -> Result<Member> {
+        Ok(self
+            .client
+            .get(ep!("/servers/{}/members/{}" server_id, user_id))
+            .auth(&self.auth)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    pub async fn edit_member(
+        &self,
+        server_id: &ServerId,
+        user_id: &UserId,
+        member: PartialMember,
+        remove: MemberField,
+    ) -> Result {
+        #[derive(serde::Serialize)]
+        struct PatchMemberRequest {
+            #[serde(flatten)]
+            member: PartialMember,
+            remove: MemberField,
+        }
+        self.client
+            .patch(ep!("/servers/{}/members/{}" server_id, user_id))
+            .auth(&self.auth)
+            .json(&PatchMemberRequest { member, remove })
+            .send()
+            .await?
+            .error_for_status()?;
+        Ok(())
+    }
+
+    pub async fn kick_member(&self, server_id: &ServerId, user_id: &UserId) -> Result {
+        self.client
+            .delete(ep!("/servers/{}/members/{}" server_id, user_id))
+            .auth(&self.auth)
+            .send()
+            .await?
+            .error_for_status()?;
+
+        Ok(())
+    }
+
+    pub async fn fetch_all_members(&self, server_id: &ServerId) -> Result<FetchMembersResult> {
+        Ok(self
+            .client
+            .get(ep!("/servers/{}/members" server_id))
+            .auth(&self.auth)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    pub async fn ban_user(
+        &self,
+        server_id: &ServerId,
+        user_id: &UserId,
+        reason: Option<&str>,
+    ) -> Result {
+        #[derive(serde::Serialize)]
+        struct BanRequest<'a> {
+            #[serde(skip_serializing_if = "Option::is_none")]
+            reason: Option<&'a str>,
+        }
+        self.client
+            .put(ep!("/servers/{}/bans/{}" server_id, user_id))
+            .auth(&self.auth)
+            .json(&BanRequest { reason })
+            .send()
+            .await?
+            .error_for_status()?;
+
+        Ok(())
+    }
+
+    pub async fn unban_user(
+        &self,
+        server_id: &ServerId,
+        user_id: &UserId,
+    ) -> Result {
+        self.client
+            .delete(ep!("/servers/{}/bans/{}" server_id, user_id))
+            .auth(&self.auth)
+            .send()
+            .await?
+            .error_for_status()?;
+
+        Ok(())
+    }
+
+    // TODO fetch bans
+
+    // TODO server permissions
+    // TODO roles
+    // TODO bots
+    // TODO invites
+    // TODO sync
+}
+
+#[derive(serde::Deserialize)]
+pub struct FetchMessagesResult {
+    pub messages: Vec<Message>,
+    #[serde(default)]
+    pub users: Vec<User>,
+    #[serde(default)]
+    pub members: Vec<Member>,
+}
+
+#[derive(serde::Deserialize)]
+pub struct FetchMembersResult {
+    pub users: Vec<User>,
+    pub members: Vec<Member>,
 }
 
 mod utils {

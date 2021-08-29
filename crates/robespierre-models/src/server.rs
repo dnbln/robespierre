@@ -28,7 +28,7 @@ pub struct Server {
     pub banner: Option<Attachment>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone, Eq, PartialEq)]
 pub struct PartialServer {
     #[serde(rename = "_id", default, skip_serializing_if = "Option::is_none")]
     pub id: Option<ServerId>,
@@ -91,7 +91,7 @@ pub struct Role {
     pub rank: Option<u32>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct PartialRole {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -140,7 +140,7 @@ pub struct Member {
     pub roles: Vec<RoleId>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct PartialMember {
     #[serde(rename = "_id", default, skip_serializing_if = "Option::is_none")]
     pub id: Option<MemberId>,

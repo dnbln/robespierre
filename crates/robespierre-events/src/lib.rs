@@ -62,6 +62,14 @@ pub enum ClientToServerEvent {
 }
 
 #[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
+pub struct ReadyEvent {
+    pub users: Vec<User>,
+    pub servers: Vec<Server>,
+    pub channels: Vec<Channel>,
+    pub members: Vec<Member>,
+}
+
+#[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(tag = "type")]
 pub enum ServerToClientEvent {
     Error {
@@ -72,10 +80,8 @@ pub enum ServerToClientEvent {
         time: u32,
     },
     Ready {
-        users: Vec<User>,
-        servers: Vec<Server>,
-        channels: Vec<Channel>,
-        members: Vec<Member>,
+        #[serde(flatten)]
+        event: ReadyEvent,
     },
     Message {
         #[serde(flatten)]
@@ -96,7 +102,8 @@ pub enum ServerToClientEvent {
     ChannelUpdate {
         id: ChannelId,
         data: PartialChannel,
-        clear: ChannelField,
+        #[serde(default)]
+        clear: Option<ChannelField>,
     },
     ChannelDelete {
         id: ChannelId,
@@ -125,7 +132,8 @@ pub enum ServerToClientEvent {
     ServerUpdate {
         id: ServerId,
         data: PartialServer,
-        clear: ServerField,
+        #[serde(default)]
+        clear: Option<ServerField>,
     },
     ServerDelete {
         id: ServerId,
@@ -133,7 +141,8 @@ pub enum ServerToClientEvent {
     ServerMemberUpdate {
         id: ServerId,
         data: PartialMember,
-        clear: MemberField,
+        #[serde(default)]
+        clear: Option<MemberField>,
     },
     ServerMemberJoin {
         id: ServerId,
@@ -147,7 +156,8 @@ pub enum ServerToClientEvent {
         id: ServerId,
         role_id: RoleId,
         data: PartialRole,
-        clear: RoleField,
+        #[serde(default)]
+        clear: Option<RoleField>,
     },
     ServerRoleDelete {
         id: ServerId,
@@ -183,10 +193,10 @@ pub enum Authentication {
     },
 }
 
-pub trait EventHandler: Send + Sync {
-    type Fut: Future<Output = ()> + Send + 'static;
-
-    fn handle(&self, event: ServerToClientEvent) -> Self::Fut;
+#[async_trait::async_trait]
+pub trait RawEventHandler: Send + Sync + Clone + 'static {
+    type Context: 'static;
+    async fn handle(self, ctx: Self::Context, event: ServerToClientEvent);
 }
 
 impl Connection {
@@ -205,7 +215,11 @@ impl Connection {
         Ok(connection)
     }
 
-    pub async fn run<H: EventHandler>(mut self, handler: H) -> Result {
+    pub async fn run<C: Clone + 'static, H: RawEventHandler<Context = C>>(
+        mut self,
+        ctx: C,
+        handler: H,
+    ) -> Result {
         let mut int = tokio::time::interval(std::time::Duration::from_secs(15));
         loop {
             // None = we didn't get any event, but we have to ping the server or it will close the connection
@@ -216,7 +230,12 @@ impl Connection {
 
             if let Some(event) = event {
                 let event = event?;
-                tokio::spawn(handler.handle(event));
+
+                let handler = handler.clone();
+                let ctx = ctx.clone();
+
+                let fut = handler.handle(ctx, event);
+                tokio::spawn(fut);
             } else {
                 let result = self.0.hb().await;
                 if let Err(err) = result {

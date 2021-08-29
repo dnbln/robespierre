@@ -28,7 +28,7 @@ pub struct User {
     pub bot: Option<BotInfo>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(deny_unknown_fields)]
 pub struct PartialUser {
     #[serde(rename = "_id", default, skip_serializing_if = "Option::is_none")]

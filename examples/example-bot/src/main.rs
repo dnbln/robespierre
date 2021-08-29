@@ -1,11 +1,7 @@
-use std::{future::Future, pin::Pin, sync::Arc};
-
-use robespierre_events::{Authentication, Connection, EventHandler, ServerToClientEvent};
+use robespierre::{Context, EventHandler, EventHandlerWrap};
+use robespierre_events::{Authentication, Connection};
 use robespierre_http::{Http, HttpAuthentication};
-use robespierre_models::{
-    channel::Message,
-    id::{IdString, UserId},
-};
+use robespierre_models::channel::Message;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -18,50 +14,39 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         token: token.clone(),
     });
 
-    let http = Arc::new(http);
-
     let connection = Connection::connect(Authentication::Bot { token }).await?;
 
-    let handler = Handler(http);
+    let ctx = Context::new(http);
 
-    connection.run(handler).await?;
+    connection.run(ctx, EventHandlerWrap::new(Handler)).await?;
 
     Ok(())
 }
 
-struct Handler(Arc<Http>);
+#[derive(Copy, Clone)]
+struct Handler;
+
+#[robespierre::async_trait]
 
 impl EventHandler for Handler {
-    type Fut = Pin<Box<dyn Future<Output = ()> + Send>>;
-
-    fn handle(&self, event: ServerToClientEvent) -> Self::Fut {
-        Box::pin(handle_event(Arc::clone(&self.0), event))
+    async fn on_ready(&self, _ctx: Context, _ready: robespierre_events::ReadyEvent) {
+        tracing::info!("I am ready");
     }
-}
 
-async fn handle_event(http: Arc<Http>, msg: ServerToClientEvent) {
-    dbg!(&msg);
-    match msg {
-        ServerToClientEvent::Message { message } => {
-            let _ = handle_message(http, message).await;
+    async fn on_message(&self, ctx: Context, message: Message) {
+        if message.content != "Hello" {
+            return;
         }
-        _ => {}
+
+        let _ = ctx
+            .http
+            .send_message(
+                &message.channel,
+                format!("Hello <@{}>", &message.author),
+                rusty_ulid::generate_ulid_string(),
+                vec![],
+                vec![],
+            )
+            .await;
     }
-}
-
-async fn handle_message(http: Arc<Http>, message: Message) -> Result<(), Box<dyn std::error::Error>> {
-    if message.content != "Hello" {
-        return Ok(());
-    }
-
-    http.send_message(
-        &message.channel,
-        format!("Hello <@{}>", &message.author),
-        rusty_ulid::generate_ulid_string(),
-        vec![],
-        vec![],
-    )
-    .await?;
-
-    Ok(())
 }
