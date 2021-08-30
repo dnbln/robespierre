@@ -2,7 +2,11 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{attachments::Attachment, channel::ChannelPermissions, id::{ChannelId, MemberId, RoleId, ServerId, UserId}};
+use crate::{
+    attachments::Attachment,
+    channel::ChannelPermissions,
+    id::{ChannelId, MemberId, RoleId, ServerId, UserId},
+};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct Server {
@@ -56,6 +60,76 @@ pub struct PartialServer {
     pub banner: Option<Attachment>,
 }
 
+impl PartialServer {
+    pub fn patch(self, serv: &mut Server) {
+        let PartialServer {
+            id: pid,
+            nonce: pnonce,
+            owner: powner,
+            name: pname,
+            description: pdescription,
+            channels: pchannels,
+            categories: pcategories,
+            system_messages: psystem_messages,
+            roles: proles,
+            default_permissions: pdefault_permissions,
+            icon: picon,
+            banner: pbanner,
+        } = self;
+        let Server {
+            id,
+            nonce,
+            owner,
+            name,
+            description,
+            channels,
+            categories,
+            system_messages,
+            roles,
+            default_permissions,
+            icon,
+            banner,
+        } = serv;
+
+        if let Some(pid) = pid {
+            *id = pid;
+        }
+        if let Some(pnonce) = pnonce {
+            *nonce = Some(pnonce);
+        }
+        if let Some(powner) = powner {
+            *owner = powner;
+        }
+        if let Some(pname) = pname {
+            *name = pname;
+        }
+        if let Some(pdescription) = pdescription {
+            *description = Some(pdescription);
+        }
+        if let Some(pchannels) = pchannels {
+            *channels = pchannels;
+        }
+        if let Some(pcategories) = pcategories {
+            *categories = pcategories;
+        }
+        if let Some(psystem_messages) = psystem_messages {
+            *system_messages = Some(psystem_messages);
+        }
+        if let Some(proles) = proles {
+            *roles = Some(proles);
+        }
+        if let Some(pdefault_permissions) = pdefault_permissions {
+            *default_permissions = pdefault_permissions;
+        }
+        if let Some(picon) = picon {
+            *icon = Some(picon);
+        }
+        if let Some(pbanner) = pbanner {
+            *banner = Some(pbanner);
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct ChannelCategory {
     pub id: ChannelId,
@@ -105,10 +179,53 @@ pub struct PartialRole {
     pub rank: Option<u32>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+impl PartialRole {
+    pub fn patch(self, role: &mut Role) {
+        let PartialRole {
+            name: pname,
+            permissions: ppermissions,
+            color: pcolor,
+            hoist: phoist,
+            rank: prank,
+        } = self;
+        let Role {
+            name,
+            permissions,
+            color,
+            hoist,
+            rank,
+        } = role;
+
+        if let Some(pname) = pname {
+            *name = pname;
+        }
+        if let Some(ppermissions) = ppermissions {
+            *permissions = ppermissions;
+        }
+        if let Some(pcolor) = pcolor {
+            *color = Some(pcolor);
+        }
+        if let Some(phoist) = phoist {
+            *hoist = phoist;
+        }
+        if let Some(prank) = prank {
+            *rank = Some(prank);
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub enum RoleField {
     #[serde(rename = "Colour")]
     Color,
+}
+
+impl RoleField {
+    pub fn remove_patch(self, role: &mut Role) {
+        match self {
+            Self::Color => role.color = None,
+        }
+    }
 }
 
 bitflags::bitflags! {
@@ -152,12 +269,64 @@ pub struct PartialMember {
     pub roles: Option<Vec<RoleId>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-pub enum ServerField {
-    Icon, Banner, Description
+impl PartialMember {
+    pub fn patch(self, member: &mut Member) {
+        let PartialMember {
+            id: pid,
+            nickname: pnickname,
+            avatar: pavatar,
+            roles: proles,
+        } = self;
+        let Member {
+            id,
+            nickname,
+            avatar,
+            roles,
+        } = member;
+
+        if let Some(pid) = pid {
+            *id = pid;
+        }
+        if let Some(pnickname) = pnickname {
+            *nickname = Some(pnickname);
+        }
+        if let Some(pavatar) = pavatar {
+            *avatar = Some(pavatar);
+        }
+        if let Some(proles) = proles {
+            *roles = proles;
+        }
+    }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+pub enum ServerField {
+    Icon,
+    Banner,
+    Description,
+}
+
+impl ServerField {
+    pub fn remove_patch(self, server: &mut Server) {
+        match self {
+            Self::Icon => server.icon = None,
+            Self::Banner => server.banner = None,
+            Self::Description => server.description = None,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub enum MemberField {
-    Nickname, Avatar
+    Nickname,
+    Avatar,
+}
+
+impl MemberField {
+    pub fn remove_patch(self, member: &mut Member) {
+        match self {
+            Self::Nickname => member.nickname = None,
+            Self::Avatar => member.avatar = None,
+        }
+    }
 }

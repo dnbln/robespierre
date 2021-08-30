@@ -1,13 +1,20 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{hash_map::Entry, HashMap, VecDeque},
+    iter::FromIterator,
+    sync::Arc,
+};
 
 use async_trait::async_trait;
 use tokio::sync::RwLock;
 
 use robespierre_models::{
-    channel::{Channel, Message},
+    channel::{Channel, ChannelField, Message, PartialChannel, PartialMessage},
     id::{ChannelId, MemberId, MessageId, RoleId, ServerId, UserId},
-    server::{Member, Role, Server},
-    user::User,
+    server::{
+        Member, MemberField, PartialMember, PartialRole, PartialServer, Role, RoleField, Server,
+        ServerField,
+    },
+    user::{PartialUser, User, UserField},
 };
 
 #[derive(Default)]
@@ -25,6 +32,7 @@ pub struct Cache {
     members: RwLock<HashMap<MemberId, Member>>,
     channels: RwLock<HashMap<ChannelId, Channel>>,
     messages: RwLock<HashMap<ChannelId, HashMap<MessageId, Message>>>,
+    message_queue: RwLock<HashMap<ChannelId, VecDeque<MessageId>>>,
 }
 
 impl Cache {
@@ -38,6 +46,7 @@ impl Cache {
             members: RwLock::new(HashMap::new()),
             channels: RwLock::new(HashMap::new()),
             messages: RwLock::new(HashMap::new()),
+            message_queue: RwLock::new(HashMap::new()),
         })
     }
 }
@@ -79,22 +88,202 @@ macro_rules! cache_field {
 }
 
 cache_field! {UserId, User, get_user, get_user_data, users, commit_user, id}
+
+impl Cache {
+    pub async fn patch_user(
+        &self,
+        user_id: UserId,
+        patch: impl FnOnce() -> PartialUser,
+        remove: Option<UserField>,
+    ) {
+        let mut lock = self.users.write().await;
+        if let Some(user) = lock.get_mut(&user_id) {
+            let patch = patch();
+
+            patch.patch(user);
+            if let Some(remove) = remove {
+                remove.remove_patch(user);
+            }
+        }
+    }
+}
+
 cache_field! {ServerId, Server, get_server, get_server_data, servers, commit_server, id}
+
+impl Cache {
+    pub async fn patch_server(
+        &self,
+        server_id: ServerId,
+        patch: impl FnOnce() -> PartialServer,
+        remove: Option<ServerField>,
+    ) {
+        let mut lock = self.servers.write().await;
+        if let Some(server) = lock.get_mut(&server_id) {
+            let patch = patch();
+
+            patch.patch(server);
+            if let Some(remove) = remove {
+                remove.remove_patch(server);
+            }
+        }
+    }
+}
+
 cache_field! {RoleId, Role, get_role, get_role_data, roles}
+
+impl Cache {
+    pub async fn commit_role(&self, role_id: RoleId, role: &Role) {
+        let mut lock = self.roles.write().await;
+        lock.insert(role_id, role.clone());
+    }
+
+    pub async fn patch_role(
+        &self,
+        role_id: RoleId,
+        patch: impl FnOnce() -> PartialRole,
+        remove: Option<RoleField>,
+    ) {
+        let mut lock = self.roles.write().await;
+        if let Some(role) = lock.get_mut(&role_id) {
+            let patch = patch();
+
+            patch.patch(role);
+            if let Some(remove) = remove {
+                remove.remove_patch(role);
+            }
+        }
+    }
+}
+
 cache_field! {MemberId, Member, get_member, get_member_data, members, commit_member, id}
+
+impl Cache {
+    pub async fn patch_member(
+        &self,
+        member_id: MemberId,
+        patch: impl FnOnce() -> PartialMember,
+        remove: Option<MemberField>,
+    ) {
+        let mut lock = self.members.write().await;
+        if let Some(member) = lock.get_mut(&member_id) {
+            let patch = patch();
+
+            patch.patch(member);
+            if let Some(remove) = remove {
+                remove.remove_patch(member);
+            }
+        }
+    }
+}
+
 cache_field! {ChannelId, Channel, get_channel, get_channel_data, channels}
 
 impl Cache {
-    async fn commit_channel(&self, channel: &Channel) {
+    pub async fn commit_channel(&self, channel: &Channel) {
         self.channels
             .write()
             .await
             .insert(channel.id(), channel.clone());
     }
+
+    pub async fn patch_channel(
+        &self,
+        channel_id: ChannelId,
+        patch: impl FnOnce() -> PartialChannel,
+        remove: Option<ChannelField>,
+    ) {
+        let mut lock = self.channels.write().await;
+        if let Some(channel) = lock.get_mut(&channel_id) {
+            let patch = patch();
+
+            patch.patch(channel);
+            if let Some(remove) = remove {
+                remove.remove_patch(channel);
+            }
+        }
+    }
+}
+
+impl Cache {
+    pub async fn get_message(&self, channel: ChannelId, message: MessageId) -> Option<Message> {
+        self.get_message_data(channel, message, Clone::clone).await
+    }
+
+    pub async fn get_message_data<F, T>(
+        &self,
+        channel: ChannelId,
+        message: MessageId,
+        f: F,
+    ) -> Option<T>
+    where
+        F: FnOnce(&Message) -> T,
+    {
+        self.messages
+            .read()
+            .await
+            .get(&channel)?
+            .get(&message)
+            .map(f)
+    }
+
+    pub async fn commit_message(&self, message: &Message) {
+        if self.config.messages == 0 {
+            return;
+        }
+
+        let mut queue_lock = self.message_queue.write().await;
+        let deque = queue_lock.entry(message.channel).or_insert(VecDeque::new());
+
+        match self.messages.write().await.entry(message.channel) {
+            Entry::Occupied(mut m) => {
+                m.get_mut().insert(message.id, message.clone());
+
+                deque.push_back(message.id);
+
+                if deque.len() > self.config.messages {
+                    if let Some(oldest) = deque.pop_front() {
+                        m.get_mut().remove(&oldest);
+                    }
+                }
+            }
+            Entry::Vacant(v) => {
+                deque.push_back(message.id);
+                v.insert(HashMap::from_iter([(message.id, message.clone())]));
+            }
+        }
+    }
+
+    pub async fn patch_message(
+        &self,
+        channel_id: ChannelId,
+        message_id: MessageId,
+        patch: impl FnOnce() -> PartialMessage,
+    ) {
+        let mut lock = self.messages.write().await;
+        if let Some(ch) = lock.get_mut(&channel_id) {
+            if let Some(message) = ch.get_mut(&message_id) {
+                let patch = patch();
+
+                patch.patch(message);
+            }
+        }
+    }
 }
 
 pub trait HasCache: Send + Sync {
     fn get_cache(&self) -> Option<&Cache>;
+}
+
+impl HasCache for Cache {
+    fn get_cache(&self) -> Option<&Cache> {
+        Some(self)
+    }
+}
+
+impl HasCache for Arc<Cache> {
+    fn get_cache(&self) -> Option<&Cache> {
+        Some(self)
+    }
 }
 
 #[async_trait]
@@ -135,5 +324,26 @@ impl CommitToCache for Channel {
 impl CommitToCache for Server {
     async fn __commit_to_cache(&self, cache: &Cache) {
         cache.commit_server(self).await;
+    }
+}
+
+#[async_trait]
+impl CommitToCache for Member {
+    async fn __commit_to_cache(&self, cache: &Cache) {
+        cache.commit_member(self).await;
+    }
+}
+
+#[async_trait]
+impl CommitToCache for Message {
+    async fn __commit_to_cache(&self, cache: &Cache) {
+        cache.commit_message(self).await;
+    }
+}
+
+#[async_trait]
+impl<'a> CommitToCache for (RoleId, &'a Role) {
+    async fn __commit_to_cache(&self, cache: &Cache) {
+        cache.commit_role(self.0, self.1).await
     }
 }

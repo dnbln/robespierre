@@ -1,3 +1,4 @@
+use robespierre::CacheWrap;
 use robespierre::model::mention::Mentionable;
 use robespierre::{async_trait, model::MessageExt, Context, EventHandler, EventHandlerWrap};
 use robespierre_cache::CacheConfig;
@@ -20,7 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let ctx = Context::new(http).with_cache(CacheConfig::default());
 
-    connection.run(ctx, EventHandlerWrap::new(Handler)).await?;
+    connection.run(ctx, EventHandlerWrap::new(CacheWrap::new(Handler))).await?;
 
     Ok(())
 }

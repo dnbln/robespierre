@@ -5,15 +5,10 @@ use async_tungstenite::{
     WebSocketStream,
 };
 use futures::FutureExt;
-use robespierre_models::{
-    channel::{Channel, ChannelField, Message, PartialChannel, PartialMessage},
-    id::{ChannelId, MessageId, RoleId, ServerId, UserId},
-    server::{
+use robespierre_models::{channel::{Channel, ChannelField, Message, PartialChannel, PartialMessage}, id::{ChannelId, MemberId, MessageId, RoleId, ServerId, UserId}, server::{
         Member, MemberField, PartialMember, PartialRole, PartialServer, RoleField, Server,
         ServerField,
-    },
-    user::{PartialUser, RelationshipStatus, User, UserField},
-};
+    }, user::{PartialUser, RelationshipStatus, User, UserField}};
 use std::result::Result as StdResult;
 use tokio::net::TcpStream;
 use tokio_rustls::client::TlsStream;
@@ -89,6 +84,7 @@ pub enum ServerToClientEvent {
     },
     MessageUpdate {
         id: MessageId,
+        channel: ChannelId,
         data: PartialMessage,
     },
     MessageDelete {
@@ -139,7 +135,7 @@ pub enum ServerToClientEvent {
         id: ServerId,
     },
     ServerMemberUpdate {
-        id: ServerId,
+        id: MemberId,
         data: PartialMember,
         #[serde(default)]
         clear: Option<MemberField>,

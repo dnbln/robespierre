@@ -5,7 +5,7 @@ use robespierre_models::{
     attachments::AutumnFileId,
     channel::{
         Channel, ChannelField, ChannelPermissions, CreateChannelInviteResponse, DmChannel, Message,
-        MessageFilter, PartialChannel, ReplyData,
+        MessageFilter, ReplyData,
     },
     id::{ChannelId, MessageId, RoleId, ServerId, UserId},
     server::{Member, MemberField, PartialMember, PartialServer, Server, ServerField},

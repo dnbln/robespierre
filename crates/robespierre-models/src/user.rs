@@ -2,7 +2,10 @@ use serde::{Deserialize, Serialize};
 
 use bitflags::bitflags;
 
-use crate::{attachments::{Attachment, AutumnFileId}, id::UserId};
+use crate::{
+    attachments::{Attachment, AutumnFileId},
+    id::UserId,
+};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(deny_unknown_fields)]
@@ -51,6 +54,66 @@ pub struct PartialUser {
     pub flags: Option<UserFlags>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bot: Option<BotInfo>,
+}
+
+impl PartialUser {
+    pub fn patch(self, user: &mut User) {
+        let PartialUser {
+            id: pid,
+            username: pusername,
+            avatar: pavatar,
+            relations: prelations,
+            badges: pbadges,
+            status: pstatus,
+            relationship: prelationship,
+            online: ponline,
+            flags: pflags,
+            bot: pbot,
+        } = self;
+        let User {
+            id,
+            username,
+            avatar,
+            relations,
+            badges,
+            status,
+            relationship,
+            online,
+            flags,
+            bot,
+        } = user;
+
+        if let Some(pid) = pid {
+            *id = pid;
+        }
+        if let Some(pusername) = pusername {
+            *username = pusername;
+        }
+        if let Some(pavatar) = pavatar {
+            *avatar = Some(pavatar);
+        }
+        if let Some(prelations) = prelations {
+            *relations = prelations;
+        }
+        if let Some(pbadges) = pbadges {
+            *badges = Some(pbadges);
+        }
+        if let Some(pstatus) = pstatus {
+            *status = Some(pstatus);
+        }
+        if let Some(prelationship) = prelationship {
+            *relationship = Some(prelationship);
+        }
+        if let Some(ponline) = ponline {
+            *online = Some(ponline);
+        }
+        if let Some(pflags) = pflags {
+            *flags = Some(pflags);
+        }
+        if let Some(pbot) = pbot {
+            *bot = Some(pbot);
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
@@ -136,7 +199,7 @@ pub struct UserProfileData {
     pub background: Option<Attachment>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub enum UserField {
     Avatar,
     ProfileBackground,
@@ -144,8 +207,22 @@ pub enum UserField {
     StatusText,
 }
 
+impl UserField {
+    pub fn remove_patch(self, user: &mut User) {
+        match self {
+            Self::Avatar => user.avatar = None,
+            Self::ProfileBackground => {}
+            Self::ProfileContent => {}
+            Self::StatusText => {
+                if let Some(Status { text, .. }) = &mut user.status {
+                    *text = None
+                }
+            }
+        }
+    }
+}
+
 #[derive(Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct NewRelationshipResponse {
     pub status: RelationshipStatus,
 }
-
