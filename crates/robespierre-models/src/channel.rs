@@ -85,8 +85,17 @@ impl Channel {
             Self::SavedMessages { id, .. } => *id,
             Self::DirectMessage { id, .. } => *id,
             Self::Group { id, .. } => *id,
-            Self::TextChannel { id,  ..} => *id,
+            Self::TextChannel { id, .. } => *id,
             Self::VoiceChannel { id, .. } => *id,
+        }
+    }
+
+    pub fn server_id(&self) -> Option<ServerId> {
+        match self {
+            Channel::TextChannel { server, .. } | Channel::VoiceChannel { server, .. } => {
+                Some(*server)
+            }
+            _ => None,
         }
     }
 }

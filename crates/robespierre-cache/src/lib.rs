@@ -130,3 +130,10 @@ impl CommitToCache for Channel {
         cache.commit_channel(self).await;
     }
 }
+
+#[async_trait]
+impl CommitToCache for Server {
+    async fn __commit_to_cache(&self, cache: &Cache) {
+        cache.commit_server(self).await;
+    }
+}

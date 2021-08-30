@@ -1,9 +1,9 @@
+use robespierre::model::mention::Mentionable;
 use robespierre::{async_trait, model::MessageExt, Context, EventHandler, EventHandlerWrap};
-use robespierre_events::{Authentication, Connection};
 use robespierre_cache::CacheConfig;
+use robespierre_events::{Authentication, Connection};
 use robespierre_http::{Http, HttpAuthentication};
 use robespierre_models::channel::Message;
-use robespierre::model::mention::Mentionable;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -38,9 +38,18 @@ impl EventHandler for Handler {
 
         let author = message.author(&ctx).await.unwrap();
         let channel = message.channel(&ctx).await.unwrap();
+        let server = message.server(&ctx).await.unwrap();
 
         let _ = message
-            .reply(&ctx, format!("Hello {} from {}", author.mention(), channel.mention()))
+            .reply(
+                &ctx,
+                format!(
+                    "Hello {} from {}{}",
+                    author.mention(),
+                    channel.mention(),
+                    server.map_or_else(Default::default, |it| format!(" in {}", it.name))
+                ),
+            )
             .await;
     }
 }

@@ -1,5 +1,10 @@
 use robespierre_cache::CommitToCache;
-use robespierre_models::{channel::{Channel, Message, ReplyData}, user::User};
+use robespierre_models::{
+    channel::{Channel, Message, ReplyData},
+    id::{ChannelId, ServerId, UserId},
+    server::Server,
+    user::User,
+};
 
 use crate::{Context, Result};
 
@@ -14,6 +19,8 @@ pub trait MessageExt {
     async fn reply_ping(&self, ctx: &Context, content: impl AsRefStr) -> Result<Message>;
     async fn author(&self, ctx: &Context) -> Result<User>;
     async fn channel(&self, ctx: &Context) -> Result<Channel>;
+    async fn server_id(&self, ctx: &Context) -> Result<Option<ServerId>>;
+    async fn server(&self, ctx: &Context) -> Result<Option<Server>>;
 }
 
 #[async_trait::async_trait]
@@ -51,22 +58,116 @@ impl MessageExt for Message {
     }
 
     async fn author(&self, ctx: &Context) -> Result<User> {
-        if let Some(ref cache) = ctx.cache {
-            if let Some(user) = cache.get_user(self.author).await {
-                return Ok(user)
-            }
-        }
-
-        Ok(ctx.http.fetch_user(self.author).await?.commit_to_cache(ctx).await)
+        self.author.user(ctx).await
     }
 
     async fn channel(&self, ctx: &Context) -> Result<Channel> {
+        self.channel.channel(ctx).await
+    }
+
+    async fn server_id(&self, ctx: &Context) -> Result<Option<ServerId>> {
+        self.channel.server_id(ctx).await
+    }
+
+    async fn server(&self, ctx: &Context) -> Result<Option<Server>> {
+        let ch = self.channel(ctx).await?;
+
+        Ok(ch.server(ctx).await?)
+    }
+}
+
+#[async_trait::async_trait]
+pub trait ChannelExt {
+    async fn server(&self, ctx: &Context) -> Result<Option<Server>>;
+}
+
+#[async_trait::async_trait]
+impl ChannelExt for Channel {
+    async fn server(&self, ctx: &Context) -> Result<Option<Server>> {
+        let server_id = match self.server_id() {
+            Some(id) => id,
+            None => return Ok(None),
+        };
+
+        Ok(Some(server_id.server(ctx).await?))
+    }
+}
+
+#[async_trait::async_trait]
+pub trait ChannelIdExt {
+    async fn channel(&self, ctx: &Context) -> Result<Channel>;
+    async fn server_id(&self, ctx: &Context) -> Result<Option<ServerId>>;
+    async fn server(&self, ctx: &Context) -> Result<Option<Server>>;
+}
+
+#[async_trait::async_trait]
+impl ChannelIdExt for ChannelId {
+    async fn channel(&self, ctx: &Context) -> Result<Channel> {
         if let Some(ref cache) = ctx.cache {
-            if let Some(channel) = cache.get_channel(self.channel).await {
+            if let Some(channel) = cache.get_channel(*self).await {
                 return Ok(channel);
             }
         }
 
-        Ok(ctx.http.fetch_channel(self.channel).await?.commit_to_cache(ctx).await)
-    }    
+        Ok(ctx
+            .http
+            .fetch_channel(*self)
+            .await?
+            .commit_to_cache(ctx)
+            .await)
+    }
+
+    async fn server_id(&self, ctx: &Context) -> Result<Option<ServerId>> {
+        Ok(self.channel(ctx).await?.server_id())
+    }
+
+    async fn server(&self, ctx: &Context) -> Result<Option<Server>> {
+        self.channel(ctx).await?.server(ctx).await
+    }
+}
+
+#[async_trait::async_trait]
+pub trait ServerIdExt {
+    async fn server(&self, ctx: &Context) -> Result<Server>;
+}
+
+#[async_trait::async_trait]
+impl ServerIdExt for ServerId {
+    async fn server(&self, ctx: &Context) -> Result<Server> {
+        if let Some(ref cache) = ctx.cache {
+            if let Some(server) = cache.get_server(*self).await {
+                return Ok(server);
+            }
+        }
+
+        Ok(ctx
+            .http
+            .fetch_server(*self)
+            .await?
+            .commit_to_cache(ctx)
+            .await)
+    }
+}
+
+#[async_trait::async_trait]
+pub trait UserIdExt {
+    async fn user(&self, ctx: &Context) -> Result<User>;
+}
+
+#[async_trait::async_trait]
+impl UserIdExt for UserId {
+    async fn user(&self, ctx: &Context) -> Result<User> {
+        if let Some(ref cache) = ctx.cache {
+            if let Some(user) = cache.get_user(*self).await {
+                return Ok(user);
+            }
+        }
+
+        Ok(ctx
+            .http
+            .fetch_user(*self)
+            .await?
+            .commit_to_cache(ctx)
+            .await)
+    }
 }
