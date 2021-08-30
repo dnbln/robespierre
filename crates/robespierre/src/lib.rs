@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use robespierre_cache::{Cache, CacheConfig, CommitToCache, HasCache};
-use robespierre_events::{EventsError, RawEventHandler, ReadyEvent, ServerToClientEvent};
+use robespierre_events::{
+    ConnectionMessage, EventsError, RawEventHandler, ReadyEvent, ServerToClientEvent,
+};
 use robespierre_http::{Http, HttpError};
 use robespierre_models::{
     channel::{Channel, ChannelField, Message, PartialChannel, PartialMessage},
@@ -11,6 +13,7 @@ use robespierre_models::{
 };
 
 pub use async_trait::async_trait;
+use tokio::sync::mpsc::UnboundedSender;
 
 pub mod model;
 
@@ -398,6 +401,7 @@ where
 pub struct Context {
     pub http: Arc<Http>,
     pub cache: Option<Arc<Cache>>,
+    pub tx: Option<UnboundedSender<robespierre_events::ConnectionMessage>>,
 }
 
 impl Context {
@@ -405,12 +409,40 @@ impl Context {
         Self {
             http: Arc::new(http),
             cache: None,
+            tx: None,
         }
     }
 
     pub fn with_cache(self, cache_config: CacheConfig) -> Self {
         Self {
             cache: Some(Cache::new(cache_config)),
+            ..self
+        }
+    }
+
+    pub(crate) fn start_typing(&self, channel: ChannelId) {
+        let tx = self.tx.as_ref().expect(
+            "need sender; did you forget to call .set_sender(...) on robespierre::Context?",
+        );
+
+        tx.send(ConnectionMessage::StartTyping { channel })
+            .expect("Something went terribly wrong and the receiver closed");
+    }
+
+    pub(crate) fn stop_typing(&self, channel: ChannelId) {
+        let tx = self.tx.as_ref().expect(
+            "need sender; did you forget to call .set_sender(...) on robespierre::Context?",
+        );
+
+        tx.send(ConnectionMessage::StopTyping { channel })
+            .expect("Something went terribly wrong and the receiver closed");
+    }
+}
+
+impl robespierre_events::Context for Context {
+    fn set_sender(self, tx: UnboundedSender<robespierre_events::ConnectionMessage>) -> Self {
+        Self {
+            tx: Some(tx),
             ..self
         }
     }

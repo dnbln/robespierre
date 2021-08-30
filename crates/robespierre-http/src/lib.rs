@@ -42,8 +42,8 @@ impl AuthExt for RequestBuilder {
     fn auth(self, auth: &HttpAuthentication) -> Self {
         match auth {
             HttpAuthentication::BotToken { token } => self.header("x-bot-token", token),
-            HttpAuthentication::UserSession { .. } => {
-                unimplemented!("authentication with user session not implemented yet")
+            HttpAuthentication::UserSession { user_id, session_token } => {
+                self.header("x-session-token", session_token).header("x-user-id", format!("{}", user_id))
             }
         }
     }

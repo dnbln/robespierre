@@ -98,6 +98,10 @@ pub trait ChannelIdExt {
     async fn channel(&self, ctx: &Context) -> Result<Channel>;
     async fn server_id(&self, ctx: &Context) -> Result<Option<ServerId>>;
     async fn server(&self, ctx: &Context) -> Result<Option<Server>>;
+
+    /// timeout in ~3 seconds, call this function again if typing for a longer period of time
+    fn start_typing(&self, ctx: &Context);
+    fn stop_typing(&self, ctx: &Context);
 }
 
 #[async_trait::async_trait]
@@ -123,6 +127,14 @@ impl ChannelIdExt for ChannelId {
 
     async fn server(&self, ctx: &Context) -> Result<Option<Server>> {
         self.channel(ctx).await?.server(ctx).await
+    }
+
+    fn start_typing(&self, ctx: &Context) {
+        ctx.start_typing(*self)
+    }
+
+    fn stop_typing(&self, ctx: &Context) {
+        ctx.stop_typing(*self)
     }
 }
 
@@ -163,11 +175,6 @@ impl UserIdExt for UserId {
             }
         }
 
-        Ok(ctx
-            .http
-            .fetch_user(*self)
-            .await?
-            .commit_to_cache(ctx)
-            .await)
+        Ok(ctx.http.fetch_user(*self).await?.commit_to_cache(ctx).await)
     }
 }

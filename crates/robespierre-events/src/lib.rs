@@ -5,12 +5,17 @@ use async_tungstenite::{
     WebSocketStream,
 };
 use futures::FutureExt;
-use robespierre_models::{channel::{Channel, ChannelField, Message, PartialChannel, PartialMessage}, id::{ChannelId, MemberId, MessageId, RoleId, ServerId, UserId}, server::{
+use robespierre_models::{
+    channel::{Channel, ChannelField, Message, PartialChannel, PartialMessage},
+    id::{ChannelId, MemberId, MessageId, RoleId, ServerId, UserId},
+    server::{
         Member, MemberField, PartialMember, PartialRole, PartialServer, RoleField, Server,
         ServerField,
-    }, user::{PartialUser, RelationshipStatus, User, UserField}};
+    },
+    user::{PartialUser, RelationshipStatus, User, UserField},
+};
 use std::result::Result as StdResult;
-use tokio::net::TcpStream;
+use tokio::{net::TcpStream, sync::mpsc::UnboundedSender};
 use tokio_rustls::client::TlsStream;
 
 use serde::{Deserialize, Serialize};
@@ -195,6 +200,16 @@ pub trait RawEventHandler: Send + Sync + Clone + 'static {
     async fn handle(self, ctx: Self::Context, event: ServerToClientEvent);
 }
 
+#[derive(Debug, Copy, Clone)]
+pub enum ConnectionMessage {
+    StartTyping { channel: ChannelId },
+    StopTyping { channel: ChannelId },
+}
+
+pub trait Context: Sized {
+    fn set_sender(self, tx: UnboundedSender<ConnectionMessage>) -> Self;
+}
+
 impl Connection {
     pub async fn connect(auth: Authentication) -> Result<Self> {
         tracing::debug!("Connecting to websocket");
@@ -213,29 +228,55 @@ impl Connection {
 
     pub async fn run<C, H>(mut self, ctx: C, handler: H) -> Result
     where
-        C: Clone + 'static,
+        C: Clone + Context + 'static,
         H: RawEventHandler<Context = C>,
     {
         let mut int = tokio::time::interval(std::time::Duration::from_secs(15));
+
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<ConnectionMessage>();
+
+        enum Event {
+            FromServer(Result<ServerToClientEvent>),
+            ConnectionMessage(Option<ConnectionMessage>),
+            Tick,
+        }
+
         loop {
             // None = we didn't get any event, but we have to ping the server or it will close the connection
             let event = futures::select! {
-                event = self.0.get_event().fuse() => Some(event),
-                _ = int.tick().fuse() => None,
+                event = self.0.get_event().fuse() => Event::FromServer(event),
+                connection_message = rx.recv().fuse() => Event::ConnectionMessage(connection_message),
+                _ = int.tick().fuse() => Event::Tick,
             };
 
-            if let Some(event) = event {
-                let event = event?;
+            match event {
+                Event::FromServer(event) => {
+                    let event = event?;
 
-                let handler = handler.clone();
-                let ctx = ctx.clone();
+                    let handler = handler.clone();
+                    let ctx = ctx.clone().set_sender(tx.clone());
 
-                let fut = handler.handle(ctx, event);
-                tokio::spawn(fut);
-            } else {
-                let result = self.0.hb().await;
-                if let Err(err) = result {
-                    tracing::error!("hb error: {}", err);
+                    let fut = handler.handle(ctx, event);
+                    tokio::spawn(fut);
+                }
+                Event::ConnectionMessage(Some(message)) => match message {
+                    ConnectionMessage::StartTyping { channel } => {
+                        self.start_typing(channel).await?
+                    }
+                    ConnectionMessage::StopTyping { channel } => self.end_typing(channel).await?,
+                },
+                Event::ConnectionMessage(None) => {
+                    // can never happen as the tx is never moved outside of this function,
+                    // only cloned, and therefore at least one sender is not dropped
+                    // also, the receiver is never dropped / closed
+
+                    // (unless ? propagates the error in which case this block shouldn't be reached)
+                }
+                Event::Tick => {
+                    let result = self.0.hb().await;
+                    if let Err(err) = result {
+                        tracing::error!("hb error: {}", err);
+                    }
                 }
             }
         }
@@ -247,6 +288,17 @@ impl Connection {
 
     pub async fn get_event(&mut self) -> Result<ServerToClientEvent> {
         self.0.get_event().await
+    }
+
+    pub async fn start_typing(&mut self, channel: ChannelId) -> Result {
+        self.0
+            .send_event(ClientToServerEvent::BeginTyping { channel })
+            .await
+    }
+    pub async fn end_typing(&mut self, channel: ChannelId) -> Result {
+        self.0
+            .send_event(ClientToServerEvent::EndTyping { channel })
+            .await
     }
 }
 

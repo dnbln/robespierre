@@ -1,5 +1,6 @@
-use robespierre::CacheWrap;
 use robespierre::model::mention::Mentionable;
+use robespierre::model::ChannelIdExt;
+use robespierre::CacheWrap;
 use robespierre::{async_trait, model::MessageExt, Context, EventHandler, EventHandlerWrap};
 use robespierre_cache::CacheConfig;
 use robespierre_events::{Authentication, Connection};
@@ -21,7 +22,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let ctx = Context::new(http).with_cache(CacheConfig::default());
 
-    connection.run(ctx, EventHandlerWrap::new(CacheWrap::new(Handler))).await?;
+    connection
+        .run(ctx, EventHandlerWrap::new(CacheWrap::new(Handler)))
+        .await?;
 
     Ok(())
 }
@@ -41,6 +44,15 @@ impl EventHandler for Handler {
         let channel = message.channel(&ctx).await.unwrap();
         let server = message.server(&ctx).await.unwrap();
 
+        message.channel.start_typing(&ctx);
+        tokio::time::sleep(std::time::Duration::new(2, 500_000_000)).await;
+
+        message.channel.start_typing(&ctx);
+        tokio::time::sleep(std::time::Duration::new(2, 500_000_000)).await;
+
+        message.channel.start_typing(&ctx);
+        tokio::time::sleep(std::time::Duration::new(2, 500_000_000)).await;
+
         let _ = message
             .reply(
                 &ctx,
@@ -52,5 +64,7 @@ impl EventHandler for Handler {
                 ),
             )
             .await;
+
+        message.channel.stop_typing(&ctx);
     }
 }
