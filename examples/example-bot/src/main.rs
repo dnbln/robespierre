@@ -3,6 +3,7 @@ use robespierre_events::{Authentication, Connection};
 use robespierre_cache::CacheConfig;
 use robespierre_http::{Http, HttpAuthentication};
 use robespierre_models::channel::Message;
+use robespierre::model::mention::Mentionable;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -39,7 +40,7 @@ impl EventHandler for Handler {
         let channel = message.channel(&ctx).await.unwrap();
 
         let _ = message
-            .reply(&ctx, format!("Hello {} from <#{}>", author.username, channel.id()))
+            .reply(&ctx, format!("Hello {} from {}", author.mention(), channel.mention()))
             .await;
     }
 }

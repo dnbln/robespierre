@@ -3,6 +3,8 @@ use robespierre_models::{channel::{Channel, Message, ReplyData}, user::User};
 
 use crate::{Context, Result};
 
+pub mod mention;
+
 pub trait AsRefStr: AsRef<str> + Send + Sync + 'static {}
 impl<T> AsRefStr for T where T: AsRef<str> + Send + Sync + 'static {}
 
