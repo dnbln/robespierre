@@ -244,6 +244,10 @@ impl Connection {
     pub async fn hb(&mut self) -> Result {
         self.0.hb().await
     }
+
+    pub async fn get_event(&mut self) -> Result<ServerToClientEvent> {
+        self.0.get_event().await
+    }
 }
 
 impl ConnectionInternal {
