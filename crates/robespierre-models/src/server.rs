@@ -77,7 +77,7 @@ pub struct SystemMessagesChannels {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(transparent)]
-pub struct RolesObject(HashMap<String, Role>);
+pub struct RolesObject(HashMap<RoleId, Role>);
 
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Role {

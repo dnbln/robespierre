@@ -79,6 +79,18 @@ pub enum Channel {
     },
 }
 
+impl Channel {
+    pub fn id(&self) -> ChannelId {
+        match self {
+            Self::SavedMessages { id, .. } => *id,
+            Self::DirectMessage { id, .. } => *id,
+            Self::Group { id, .. } => *id,
+            Self::TextChannel { id,  ..} => *id,
+            Self::VoiceChannel { id, .. } => *id,
+        }
+    }
+}
+
 #[derive(Deserialize, Serialize, Debug, Clone, Eq, PartialEq)]
 #[serde(tag = "channel_type")]
 pub enum PartialChannel {
@@ -200,17 +212,10 @@ pub enum DmChannel {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         icon: Option<Attachment>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        permissions: Option<Permissions>,
+        permissions: Option<ChannelPermissions>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         nonce: Option<String>,
     },
-}
-
-bitflags::bitflags! {
-    #[derive(Serialize, Deserialize)]
-    pub struct Permissions: u32 {
-        // TODO: impl
-    }
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]

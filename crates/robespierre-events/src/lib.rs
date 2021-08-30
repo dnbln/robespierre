@@ -4,7 +4,7 @@ use async_tungstenite::{
     tungstenite::Message as TungsteniteMessage,
     WebSocketStream,
 };
-use futures::{Future, FutureExt};
+use futures::FutureExt;
 use robespierre_models::{
     channel::{Channel, ChannelField, Message, PartialChannel, PartialMessage},
     id::{ChannelId, MessageId, RoleId, ServerId, UserId},
@@ -14,8 +14,8 @@ use robespierre_models::{
     },
     user::{PartialUser, RelationshipStatus, User, UserField},
 };
-use std::{result::Result as StdResult, sync::Arc};
-use tokio::{net::TcpStream, sync::Mutex};
+use std::result::Result as StdResult;
+use tokio::net::TcpStream;
 use tokio_rustls::client::TlsStream;
 
 use serde::{Deserialize, Serialize};
@@ -215,11 +215,11 @@ impl Connection {
         Ok(connection)
     }
 
-    pub async fn run<C: Clone + 'static, H: RawEventHandler<Context = C>>(
-        mut self,
-        ctx: C,
-        handler: H,
-    ) -> Result {
+    pub async fn run<C, H>(mut self, ctx: C, handler: H) -> Result
+    where
+        C: Clone + 'static,
+        H: RawEventHandler<Context = C>,
+    {
         let mut int = tokio::time::interval(std::time::Duration::from_secs(15));
         loop {
             // None = we didn't get any event, but we have to ping the server or it will close the connection

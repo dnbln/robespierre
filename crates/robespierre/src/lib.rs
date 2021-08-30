@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use robespierre_cache::Cache;
-use robespierre_events::{RawEventHandler, ReadyEvent, ServerToClientEvent};
-use robespierre_http::Http;
+use robespierre_cache::{Cache, CacheConfig, HasCache};
+use robespierre_events::{EventsError, RawEventHandler, ReadyEvent, ServerToClientEvent};
+use robespierre_http::{Http, HttpError};
 use robespierre_models::{
     channel::{Channel, ChannelField, Message, PartialChannel, PartialMessage},
     id::{ChannelId, MessageId, RoleId, ServerId, UserId},
@@ -11,6 +11,18 @@ use robespierre_models::{
 };
 
 pub use async_trait::async_trait;
+
+pub mod model;
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("http error")]
+    Http(#[from] HttpError),
+    #[error("events error")]
+    Events(#[from] EventsError),
+}
+
+pub type Result<T = ()> = std::result::Result<T, Error>;
 
 #[async_trait::async_trait]
 #[allow(unused_variables)]
@@ -185,5 +197,19 @@ impl Context {
             http: Arc::new(http),
             cache: None,
         }
+    }
+
+    pub fn with_cache(self, cache_config: CacheConfig) -> Self {
+        Self {
+            cache: Some(Cache::new(cache_config)),
+            ..self
+        }
+    }
+}
+
+
+impl HasCache for Context {
+    fn get_cache(&self) -> Option<&Cache> {
+        self.cache.as_ref().map(|it| &**it)
     }
 }

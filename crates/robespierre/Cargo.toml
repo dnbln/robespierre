@@ -17,3 +17,5 @@ robespierre-events = { path = "../robespierre-events", version = "0.1.0" }
 
 async-trait = "0.1"
 tracing = "0.1"
+rusty_ulid = "0.11"
+thiserror = "1"

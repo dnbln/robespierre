@@ -1,5 +1,6 @@
-use robespierre::{Context, EventHandler, EventHandlerWrap};
+use robespierre::{async_trait, model::MessageExt, Context, EventHandler, EventHandlerWrap};
 use robespierre_events::{Authentication, Connection};
+use robespierre_cache::CacheConfig;
 use robespierre_http::{Http, HttpAuthentication};
 use robespierre_models::channel::Message;
 
@@ -16,7 +17,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let connection = Connection::connect(Authentication::Bot { token }).await?;
 
-    let ctx = Context::new(http);
+    let ctx = Context::new(http).with_cache(CacheConfig::default());
 
     connection.run(ctx, EventHandlerWrap::new(Handler)).await?;
 
@@ -26,27 +27,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[derive(Copy, Clone)]
 struct Handler;
 
-#[robespierre::async_trait]
+#[async_trait]
 
 impl EventHandler for Handler {
-    async fn on_ready(&self, _ctx: Context, _ready: robespierre_events::ReadyEvent) {
-        tracing::info!("I am ready");
-    }
-
     async fn on_message(&self, ctx: Context, message: Message) {
         if message.content != "Hello" {
             return;
         }
 
-        let _ = ctx
-            .http
-            .send_message(
-                &message.channel,
-                format!("Hello <@{}>", &message.author),
-                rusty_ulid::generate_ulid_string(),
-                vec![],
-                vec![],
-            )
+        let author = message.author(&ctx).await.unwrap();
+        let channel = message.channel(&ctx).await.unwrap();
+
+        let _ = message
+            .reply(&ctx, format!("Hello {} from <#{}>", author.username, channel.id()))
             .await;
     }
 }

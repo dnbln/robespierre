@@ -4,7 +4,8 @@ use reqwest::RequestBuilder;
 use robespierre_models::{
     attachments::AutumnFileId,
     channel::{
-        CreateChannelInviteResponse, DmChannel, Message, MessageFilter, Permissions, ReplyData,
+        Channel, ChannelField, ChannelPermissions, CreateChannelInviteResponse, DmChannel, Message,
+        MessageFilter, PartialChannel, ReplyData,
     },
     id::{ChannelId, MessageId, RoleId, ServerId, UserId},
     server::{Member, MemberField, PartialMember, PartialServer, Server, ServerField},
@@ -69,7 +70,7 @@ impl Http {
         }
     }
 
-    pub async fn fetch_user(&self, user_id: &UserId) -> Result<User> {
+    pub async fn fetch_user(&self, user_id: UserId) -> Result<User> {
         Ok(self
             .client
             .get(ep!("/users/{}" user_id))
@@ -93,7 +94,7 @@ impl Http {
         Ok(())
     }
 
-    pub async fn fetch_user_profile(&self, user_id: &UserId) -> Result<UserProfileData> {
+    pub async fn fetch_user_profile(&self, user_id: UserId) -> Result<UserProfileData> {
         Ok(self
             .client
             .get(ep!("/users/{}/profile" user_id))
@@ -117,7 +118,7 @@ impl Http {
             .await?)
     }
 
-    pub async fn open_dm(&self, user_id: &UserId) -> Result<DmChannel> {
+    pub async fn open_dm(&self, user_id: UserId) -> Result<DmChannel> {
         Ok(self
             .client
             .get(ep!("/users/{}/dm" user_id))
@@ -141,7 +142,7 @@ impl Http {
             .await?)
     }
 
-    pub async fn fetch_relationship(&self, user_id: &UserId) -> Result<Relationship> {
+    pub async fn fetch_relationship(&self, user_id: UserId) -> Result<Relationship> {
         Ok(self
             .client
             .get(ep!("/users/{}/relationship" user_id))
@@ -177,7 +178,7 @@ impl Http {
             .await?)
     }
 
-    pub async fn block(&self, user_id: &UserId) -> Result<NewRelationshipResponse> {
+    pub async fn block(&self, user_id: UserId) -> Result<NewRelationshipResponse> {
         Ok(self
             .client
             .put(ep!("/users/{}/block" user_id))
@@ -189,7 +190,7 @@ impl Http {
             .await?)
     }
 
-    pub async fn unblock(&self, user_id: &UserId) -> Result<NewRelationshipResponse> {
+    pub async fn unblock(&self, user_id: UserId) -> Result<NewRelationshipResponse> {
         Ok(self
             .client
             .delete(ep!("/users/{}/block" user_id))
@@ -201,7 +202,50 @@ impl Http {
             .await?)
     }
 
-    pub async fn close_channel(&self, channel_id: &ChannelId) -> Result {
+    pub async fn fetch_channel(&self, channel_id: ChannelId) -> Result<Channel> {
+        Ok(self
+            .client
+            .get(ep!("/channels/{}" channel_id))
+            .auth(&self.auth)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    pub async fn edit_channel(
+        &self,
+        channel_id: ChannelId,
+        name: Option<String>,
+        description: Option<String>,
+        icon: Option<AutumnFileId>,
+        remove: Option<ChannelField>,
+    ) -> Result {
+        #[derive(serde::Serialize)]
+        struct PatchChannelRequest {
+            #[serde(skip_serializing_if = "Option::is_none")]
+            name: Option<String>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            description: Option<String>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            icon: Option<AutumnFileId>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            remove: Option<ChannelField>,
+        }
+
+        self.client
+            .patch(ep!("/channels/{}" channel_id))
+            .auth(&self.auth)
+            .json(&PatchChannelRequest { name, description, icon, remove })
+            .send()
+            .await?
+            .error_for_status()?;
+
+        Ok(())
+    }
+
+    pub async fn close_channel(&self, channel_id: ChannelId) -> Result {
         self.client
             .delete(ep!("/channels/{}" channel_id))
             .auth(&self.auth)
@@ -214,7 +258,7 @@ impl Http {
 
     pub async fn create_invite(
         &self,
-        channel_id: &ChannelId,
+        channel_id: ChannelId,
     ) -> Result<CreateChannelInviteResponse> {
         Ok(self
             .client
@@ -229,9 +273,9 @@ impl Http {
 
     pub async fn set_role_permissions(
         &self,
-        channel_id: &ChannelId,
-        role_id: &RoleId,
-        permissions: Permissions,
+        channel_id: ChannelId,
+        role_id: RoleId,
+        permissions: ChannelPermissions,
     ) -> Result {
         self.client
             .put(ep!("/channels/{}/permissions/{}" channel_id, role_id))
@@ -246,8 +290,8 @@ impl Http {
 
     pub async fn set_default_permissions(
         &self,
-        channel_id: &ChannelId,
-        permissions: Permissions,
+        channel_id: ChannelId,
+        permissions: ChannelPermissions,
     ) -> Result {
         self.client
             .put(ep!("/channels/{}/permissions/default" channel_id))
@@ -262,9 +306,9 @@ impl Http {
 
     pub async fn send_message(
         &self,
-        channel_id: &ChannelId,
-        content: String,
-        nonce: String,
+        channel_id: ChannelId,
+        content: impl AsRef<str>,
+        nonce: impl AsRef<str>,
         attachments: Vec<AutumnFileId>,
         replies: Vec<ReplyData>,
     ) -> Result<Message> {
@@ -273,8 +317,8 @@ impl Http {
             .post(ep!("/channels/{}/messages" channel_id))
             .auth(&self.auth)
             .json(&SendMessageRequest {
-                content,
-                nonce,
+                content: content.as_ref(),
+                nonce: nonce.as_ref(),
                 attachments,
                 replies,
             })
@@ -287,7 +331,7 @@ impl Http {
 
     pub async fn fetch_messages(
         &self,
-        channel: &ChannelId,
+        channel: ChannelId,
         filter: MessageFilter,
     ) -> Result<FetchMessagesResult> {
         let v = self
@@ -312,7 +356,7 @@ impl Http {
         }
     }
 
-    pub async fn fetch_message(&self, channel: &ChannelId, message: &MessageId) -> Result<Message> {
+    pub async fn fetch_message(&self, channel: ChannelId, message: MessageId) -> Result<Message> {
         Ok(self
             .client
             .get(ep!("/channels/{}/messages/{}" channel, message))
@@ -326,8 +370,8 @@ impl Http {
 
     pub async fn edit_message(
         &self,
-        channel: &ChannelId,
-        message: &MessageId,
+        channel: ChannelId,
+        message: MessageId,
         content: &str,
     ) -> Result {
         #[derive(serde::Serialize)]
@@ -344,7 +388,7 @@ impl Http {
         Ok(())
     }
 
-    pub async fn delete_message(&self, channel: &ChannelId, message: &MessageId) -> Result {
+    pub async fn delete_message(&self, channel: ChannelId, message: MessageId) -> Result {
         self.client
             .delete(ep!("/channels/{}/messages/{}" channel, message))
             .auth(&self.auth)
@@ -356,7 +400,7 @@ impl Http {
 
     // TODO: groups
 
-    pub async fn fetch_server(&self, server: &ServerId) -> Result<Server> {
+    pub async fn fetch_server(&self, server: ServerId) -> Result<Server> {
         Ok(self
             .client
             .get(ep!("/servers/{}" server))
@@ -370,7 +414,7 @@ impl Http {
 
     pub async fn edit_server(
         &self,
-        server_id: &ServerId,
+        server_id: ServerId,
         server: PartialServer,
         remove: ServerField,
     ) -> Result {
@@ -392,7 +436,7 @@ impl Http {
         Ok(())
     }
 
-    pub async fn delete_server(&self, server_id: &ServerId) -> Result {
+    pub async fn delete_server(&self, server_id: ServerId) -> Result {
         self.client
             .delete(ep!("/servers/{}" server_id))
             .auth(&self.auth)
@@ -408,7 +452,7 @@ impl Http {
     // TODO fetch invites
     // TODO mark server as read
 
-    pub async fn fetch_member(&self, server_id: &ServerId, user_id: &UserId) -> Result<Member> {
+    pub async fn fetch_member(&self, server_id: ServerId, user_id: UserId) -> Result<Member> {
         Ok(self
             .client
             .get(ep!("/servers/{}/members/{}" server_id, user_id))
@@ -422,8 +466,8 @@ impl Http {
 
     pub async fn edit_member(
         &self,
-        server_id: &ServerId,
-        user_id: &UserId,
+        server_id: ServerId,
+        user_id: UserId,
         member: PartialMember,
         remove: MemberField,
     ) -> Result {
@@ -443,7 +487,7 @@ impl Http {
         Ok(())
     }
 
-    pub async fn kick_member(&self, server_id: &ServerId, user_id: &UserId) -> Result {
+    pub async fn kick_member(&self, server_id: ServerId, user_id: UserId) -> Result {
         self.client
             .delete(ep!("/servers/{}/members/{}" server_id, user_id))
             .auth(&self.auth)
@@ -454,7 +498,7 @@ impl Http {
         Ok(())
     }
 
-    pub async fn fetch_all_members(&self, server_id: &ServerId) -> Result<FetchMembersResult> {
+    pub async fn fetch_all_members(&self, server_id: ServerId) -> Result<FetchMembersResult> {
         Ok(self
             .client
             .get(ep!("/servers/{}/members" server_id))
@@ -468,8 +512,8 @@ impl Http {
 
     pub async fn ban_user(
         &self,
-        server_id: &ServerId,
-        user_id: &UserId,
+        server_id: ServerId,
+        user_id: UserId,
         reason: Option<&str>,
     ) -> Result {
         #[derive(serde::Serialize)]
@@ -488,11 +532,7 @@ impl Http {
         Ok(())
     }
 
-    pub async fn unban_user(
-        &self,
-        server_id: &ServerId,
-        user_id: &UserId,
-    ) -> Result {
+    pub async fn unban_user(&self, server_id: ServerId, user_id: UserId) -> Result {
         self.client
             .delete(ep!("/servers/{}/bans/{}" server_id, user_id))
             .auth(&self.auth)
@@ -530,20 +570,20 @@ pub struct FetchMembersResult {
 mod utils {
     use robespierre_models::{
         attachments::AutumnFileId,
-        channel::{Permissions, ReplyData},
+        channel::{ChannelPermissions, ReplyData},
     };
 
     use serde::Serialize;
 
     #[derive(Serialize)]
     pub struct PermissionsUpdateRequest {
-        pub permissions: Permissions,
+        pub permissions: ChannelPermissions,
     }
 
     #[derive(Serialize)]
-    pub struct SendMessageRequest {
-        pub content: String,
-        pub nonce: String,
+    pub struct SendMessageRequest<'a> {
+        pub content: &'a str,
+        pub nonce: &'a str,
         #[serde(skip_serializing_if = "Vec::is_empty")]
         pub attachments: Vec<AutumnFileId>,
         #[serde(skip_serializing_if = "Vec::is_empty")]
