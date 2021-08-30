@@ -240,6 +240,10 @@ impl Connection {
             }
         }
     }
+
+    pub async fn hb(&mut self) -> Result {
+        self.0.hb().await
+    }
 }
 
 impl ConnectionInternal {
