@@ -45,7 +45,3 @@ pub enum AttachmentTag {
     Icons,
 }
 
-
-#[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-#[serde(transparent)]
-pub struct AutumnFileId(u32); // TODO: autumn api

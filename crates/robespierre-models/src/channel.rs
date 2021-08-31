@@ -3,10 +3,7 @@ use std::{collections::HashMap, fmt::Display};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    attachments::{Attachment, AutumnFileId},
-    id::{ChannelId, MessageId, RoleId, ServerId, UserId},
-};
+use crate::{attachments::Attachment, id::{AttachmentId, ChannelId, MessageId, RoleId, ServerId, UserId}};
 
 #[derive(Deserialize, Serialize, Debug, Clone, Eq, PartialEq)]
 #[serde(tag = "channel_type")]
@@ -667,7 +664,7 @@ pub struct ChannelEditPatch {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub icon: Option<AutumnFileId>,
+    pub icon: Option<AttachmentId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub remove: Option<ChannelField>,
 }

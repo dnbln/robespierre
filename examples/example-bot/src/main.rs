@@ -15,7 +15,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("Cannot get token; set environment variable TOKEN=... and run again");
     let auth = Authentication::Bot { token };
 
-    let http = Http::new(&auth).await;
+    let http = Http::new(&auth).await?;
     let connection = Connection::connect(&auth).await?;
 
     let ctx = Context::new(http).with_cache(CacheConfig::default());

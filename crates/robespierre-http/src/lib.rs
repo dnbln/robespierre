@@ -1,16 +1,14 @@
 use std::result::Result as StdResult;
 
-use reqwest::{
-    header::{HeaderMap, HeaderValue},
-    RequestBuilder,
-};
+use reqwest::{header::HeaderMap, RequestBuilder};
 use robespierre_models::{
-    attachments::AutumnFileId,
+    autumn::AutumnTag,
     channel::{
         Channel, ChannelField, ChannelPermissions, CreateChannelInviteResponse, DmChannel, Message,
         MessageFilter, ReplyData,
     },
-    id::{ChannelId, MessageId, RoleId, ServerId, UserId},
+    id::{AttachmentId, ChannelId, MessageId, RoleId, ServerId, UserId},
+    instance_data::RevoltInstanceData,
     server::{Member, MemberField, PartialMember, PartialServer, Server, ServerField},
     user::{NewRelationshipResponse, Relationship, User, UserEditPatch, UserProfileData},
 };
@@ -74,47 +72,9 @@ impl AuthExt for HeaderMap {
     }
 }
 
-#[derive(serde::Deserialize)]
-struct RevoltInstanceData {
-    revolt: String,
-    features: RevoltInstanceFeatures,
-    ws: String,
-    app: String,
-    vapid: String,
-}
-
-#[derive(serde::Deserialize)]
-struct EnabledUrl {
-    enabled: bool,
-    url: String,
-}
-
-#[derive(serde::Deserialize)]
-struct EnabledUrlWs {
-    enabled: bool,
-    url: String,
-    ws: String,
-}
-
-#[derive(serde::Deserialize)]
-struct RevoltInstanceFeatures {
-    registration: bool,
-    captcha: CaptchaInfo,
-    email: bool,
-    invite_only: bool,
-    autumn: EnabledUrl,
-    january: EnabledUrl,
-    voso: EnabledUrlWs,
-}
-
-#[derive(serde::Deserialize)]
-struct CaptchaInfo {
-    enabled: bool,
-    key: String,
-}
-
 pub struct Http {
     client: reqwest::Client,
+    instance_data: RevoltInstanceData,
 }
 
 const ROOT_LINK: &str = "https://api.revolt.chat";
@@ -125,14 +85,34 @@ macro_rules! ep {
     }
 }
 
+macro_rules! autumn_tag_upload {
+    ($self:expr, $tag:expr) => {
+        format!("{}/{}", $self.instance_data.features.autumn.url(), $tag)
+    };
+}
+
 impl Http {
-    pub async fn new<'auth>(auth: impl Into<HttpAuthentication<'auth>>) -> Self {
+    pub async fn new<'auth>(auth: impl Into<HttpAuthentication<'auth>>) -> Result<Self> {
         let default_headers = HeaderMap::new().auth(&auth.into());
         let client = reqwest::Client::builder()
             .default_headers(default_headers)
             .build()
             .unwrap();
-        Self { client }
+        let instance_data = Self::get_instance_data(&client).await?;
+        Ok(Self {
+            client,
+            instance_data,
+        })
+    }
+
+    async fn get_instance_data(client: &reqwest::Client) -> Result<RevoltInstanceData> {
+        Ok(client
+            .get(ep!("/"))
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
     }
 
     pub async fn fetch_user(&self, user_id: UserId) -> Result<User> {
@@ -272,7 +252,7 @@ impl Http {
         channel_id: ChannelId,
         name: Option<String>,
         description: Option<String>,
-        icon: Option<AutumnFileId>,
+        icon: Option<AttachmentId>,
         remove: Option<ChannelField>,
     ) -> Result {
         #[derive(serde::Serialize)]
@@ -282,7 +262,7 @@ impl Http {
             #[serde(skip_serializing_if = "Option::is_none")]
             description: Option<String>,
             #[serde(skip_serializing_if = "Option::is_none")]
-            icon: Option<AutumnFileId>,
+            icon: Option<AttachmentId>,
             #[serde(skip_serializing_if = "Option::is_none")]
             remove: Option<ChannelField>,
         }
@@ -362,7 +342,7 @@ impl Http {
         channel_id: ChannelId,
         content: impl AsRef<str>,
         nonce: impl AsRef<str>,
-        attachments: Vec<AutumnFileId>,
+        attachments: Vec<AttachmentId>,
         replies: Vec<ReplyData>,
     ) -> Result<Message> {
         Ok(self
@@ -589,6 +569,26 @@ impl Http {
     // TODO bots
     // TODO invites
     // TODO sync
+
+    pub async fn upload_autumn(&self, tag: AutumnTag, bytes: Vec<u8>) -> Result<AttachmentId> {
+        #[derive(serde::Deserialize)]
+        struct AutumnUploadResponse {
+            id: AttachmentId,
+        }
+
+        let form =
+            reqwest::multipart::Form::new().part("aaaa", reqwest::multipart::Part::bytes(bytes));
+        let resp = self
+            .client
+            .post(autumn_tag_upload!(self, tag))
+            .multipart(form)
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<AutumnUploadResponse>()
+            .await?;
+        Ok(resp.id)
+    }
 }
 
 #[derive(serde::Deserialize)]
@@ -608,8 +608,8 @@ pub struct FetchMembersResult {
 
 mod utils {
     use robespierre_models::{
-        attachments::AutumnFileId,
         channel::{ChannelPermissions, ReplyData},
+        id::AttachmentId,
     };
 
     use serde::Serialize;
@@ -624,7 +624,7 @@ mod utils {
         pub content: &'a str,
         pub nonce: &'a str,
         #[serde(skip_serializing_if = "Vec::is_empty")]
-        pub attachments: Vec<AutumnFileId>,
+        pub attachments: Vec<AttachmentId>,
         #[serde(skip_serializing_if = "Vec::is_empty")]
         pub replies: Vec<ReplyData>,
     }

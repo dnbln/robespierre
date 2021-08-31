@@ -13,7 +13,7 @@ nativetls = ["reqwest/native-tls"]
 rustls = ["reqwest/rustls-tls"]
 
 [dependencies]
-reqwest = { version = "0.11.4", default-features = false, features = ["json"] }
+reqwest = { version = "0.11.4", default-features = false, features = ["json", "multipart"] }
 thiserror = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }

@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 use bitflags::bitflags;
 
 use crate::{
-    attachments::{Attachment, AutumnFileId},
-    id::UserId,
+    attachments::Attachment,
+    id::{AttachmentId, UserId},
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
@@ -175,7 +175,7 @@ pub struct UserProfileDataPatch {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub background: Option<AutumnFileId>,
+    pub background: Option<AttachmentId>,
 }
 
 #[derive(Serialize, Default, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
@@ -186,7 +186,7 @@ pub struct UserEditPatch {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub profile: Option<UserProfileDataPatch>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub avatar: Option<AutumnFileId>,
+    pub avatar: Option<AttachmentId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub remove: Option<UserField>,
 }
