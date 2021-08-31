@@ -8,6 +8,7 @@ use crate::{
     id::{AttachmentId, ChannelId, MessageId, RoleId, ServerId, UserId},
 };
 
+/// A channel
 #[derive(Deserialize, Serialize, Debug, Clone, Eq, PartialEq)]
 #[serde(tag = "channel_type")]
 pub enum Channel {
@@ -100,6 +101,8 @@ impl Channel {
     }
 }
 
+/// A channel where all the fields are optional, and can be treated as a patch that
+/// can be applied to a [`Channel`].
 #[derive(Deserialize, Serialize, Debug, Clone, Eq, PartialEq)]
 #[serde(tag = "channel_type")]
 pub enum PartialChannel {
@@ -183,6 +186,7 @@ pub enum PartialChannel {
 }
 
 impl PartialChannel {
+    /// Treats self as a patch and applies it to channel.
     pub fn patch(self, ch: &mut Channel) {
         match (self, ch) {
             (
@@ -389,6 +393,7 @@ impl PartialChannel {
 bitflags::bitflags! {
     #[derive(Serialize, Deserialize)]
     #[serde(transparent)]
+    #[doc = "Channel permissions"]
     pub struct ChannelPermissions: u32 {
         const VIEW = 0b00000000000000000000000000000001;           // 1
         const SEND_MESSAGE = 0b00000000000000000000000000000010;    // 2
@@ -401,6 +406,7 @@ bitflags::bitflags! {
     }
 }
 
+/// A dm channel or group
 #[derive(Deserialize, Serialize, Debug, Clone, Eq, PartialEq)]
 #[serde(tag = "channel_type")]
 pub enum DmChannel {
@@ -439,12 +445,14 @@ pub struct LastMessageData {
     pub short: String,
 }
 
+/// Data about reply
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ReplyData {
     pub id: MessageId,
     pub mention: bool,
 }
 
+/// A message
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Message {
     #[serde(rename = "_id")]
@@ -466,6 +474,8 @@ pub struct Message {
     pub replies: Vec<MessageId>,
 }
 
+/// A message where all the fields are optional, and can be treated as a patch
+/// that can be applied to a [`Message`].
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PartialMessage {
     #[serde(rename = "_id", default, skip_serializing_if = "Option::is_none")]
@@ -491,6 +501,7 @@ pub struct PartialMessage {
 }
 
 impl PartialMessage {
+    /// Treats self as a patch and applies it to message.
     pub fn patch(self, m: &mut Message) {
         let PartialMessage {
             id: pid,
@@ -550,6 +561,7 @@ impl PartialMessage {
     }
 }
 
+/// Helper to serialize / deserialize mongo dates
 #[derive(Serialize, Deserialize, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(from = "WrappedDate", into = "WrappedDate")]
 pub struct Date(pub DateTime<Utc>);
@@ -604,6 +616,7 @@ pub enum Embed {
     },
 }
 
+/// Data about an embed of a special website, if it is the case
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(tag = "type")]
 pub enum SpecialWebsiteEmbed {
@@ -626,6 +639,7 @@ pub enum SpecialWebsiteEmbed {
     },
 }
 
+/// Twich content type
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub enum TwitchContentType {
     Channel,
@@ -633,12 +647,14 @@ pub enum TwitchContentType {
     Video,
 }
 
+/// Bandcamp content type
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub enum BandcampContentType {
     Album,
     Track,
 }
 
+/// Embedded image
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct EmbeddedImage {
     pub url: String,
@@ -647,6 +663,7 @@ pub struct EmbeddedImage {
     pub size: SizeType,
 }
 
+/// Embedded video
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct EmbeddedVideo {
     pub url: String,
@@ -654,12 +671,14 @@ pub struct EmbeddedVideo {
     pub height: u32,
 }
 
+/// Size type
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub enum SizeType {
     Large,
     Preview,
 }
 
+/// A patch to a channel
 #[derive(Serialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct ChannelEditPatch {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -672,6 +691,7 @@ pub struct ChannelEditPatch {
     pub remove: Option<ChannelField>,
 }
 
+/// A channel field that can be removed from a channel
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub enum ChannelField {
     Description,
@@ -679,6 +699,7 @@ pub enum ChannelField {
 }
 
 impl ChannelField {
+    /// Treats self as a patch and removes the field from the channel.
     pub fn remove_patch(self, channel: &mut Channel) {
         match self {
             Self::Description => match channel {
@@ -697,6 +718,7 @@ impl ChannelField {
     }
 }
 
+/// An invite code
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(transparent)]
 pub struct ChannelInviteCode(String);
@@ -712,6 +734,7 @@ pub struct CreateChannelInviteResponse {
     code: ChannelInviteCode,
 }
 
+/// Message filter
 #[derive(Debug, Default, Serialize)]
 pub struct MessageFilter {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -727,9 +750,12 @@ pub struct MessageFilter {
     pub include_users: Option<bool>,
 }
 
+/// THe direction of a message filter
 #[derive(Debug, Serialize)]
 pub enum MessageFilterSortDirection {
+    /// Tkae the latest messages first.
     Latest,
+    /// Take the oldest messages first.
     Oldest,
 }
 
@@ -739,6 +765,7 @@ impl Default for MessageFilterSortDirection {
     }
 }
 
+/// Server channel type
 #[derive(Serialize, Deserialize, Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum ServerChannelType {
     Text,

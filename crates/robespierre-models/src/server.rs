@@ -8,6 +8,7 @@ use crate::{
     id::{ChannelId, MemberId, RoleId, ServerId, UserId},
 };
 
+/// A server.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct Server {
     #[serde(rename = "_id")]
@@ -32,6 +33,8 @@ pub struct Server {
     pub banner: Option<Attachment>,
 }
 
+/// A server where all the fields are optional, and so can be
+/// treated as a patch that can be applied to a [`Server`].
 #[derive(Serialize, Deserialize, Default, Debug, Clone, Eq, PartialEq)]
 pub struct PartialServer {
     #[serde(rename = "_id", default, skip_serializing_if = "Option::is_none")]
@@ -61,6 +64,7 @@ pub struct PartialServer {
 }
 
 impl PartialServer {
+    /// Treats self as a patch and applies it to server.
     pub fn patch(self, serv: &mut Server) {
         let PartialServer {
             id: pid,
@@ -130,6 +134,7 @@ impl PartialServer {
     }
 }
 
+/// A channel category
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct ChannelCategory {
     pub id: ChannelId,
@@ -137,34 +142,63 @@ pub struct ChannelCategory {
     pub channels: Vec<ChannelId>,
 }
 
+/// System message channels
+///
+/// Contains info about in which channels should
+/// revolt itself send messages about those events.
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct SystemMessagesChannels {
+    /// The channel to send the user joined messages in.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub user_joined: Option<ChannelId>,
+    /// The channel to send the user left messages in.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub user_left: Option<ChannelId>,
+    /// The channel to send the user kicked messages in.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub user_kicked: Option<ChannelId>,
+    /// The channel to send the user banned messages in.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub user_banned: Option<ChannelId>,
 }
 
+/// A "roles object", as a map of (key=[`RoleId`], value=[`Role`]) elements,
+/// as that is how roles are represented within a [`Server`] object.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(transparent)]
 pub struct RolesObject(HashMap<RoleId, Role>);
 
+/// A role.
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Role {
+    /// The name of the role.
     pub name: String,
+    /// The permissions the role has.
     pub permissions: (ServerPermissions, ChannelPermissions),
+    /// The color
+    /// "Valid html color"
+    /// - documentation
+    ///
+    /// The documentation says that this is untrusted input,
+    /// and should not be inserted anywhere.
+    /// Example usage:
+    /// ```js
+    /// document.body.style.color = role.color;
+    /// ```
     #[serde(rename = "colour", default, skip_serializing_if = "Option::is_none")]
     pub color: Option<String>,
+    /// Whether this role is hoisted.
     #[serde(default)]
     pub hoist: bool,
+    /// The rank of this role.
+    ///
+    /// The higher the rank, the lower in the role hierarchy it will be.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rank: Option<u32>,
 }
 
+/// A role where all the fields are optional, and can be used to
+/// describe a patch applied to a role.
 #[derive(Serialize, Deserialize, Debug, Default, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct PartialRole {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -180,6 +214,7 @@ pub struct PartialRole {
 }
 
 impl PartialRole {
+    /// Treat self as a patch and apply it to role.
     pub fn patch(self, role: &mut Role) {
         let PartialRole {
             name: pname,
@@ -214,6 +249,7 @@ impl PartialRole {
     }
 }
 
+/// A role field
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub enum RoleField {
     #[serde(rename = "Colour")]
@@ -221,6 +257,7 @@ pub enum RoleField {
 }
 
 impl RoleField {
+    /// Treats this role as a patch and removes the field from the role.
     pub fn remove_patch(self, role: &mut Role) {
         match self {
             Self::Color => role.color = None,
@@ -231,6 +268,7 @@ impl RoleField {
 bitflags::bitflags! {
     #[derive(Serialize, Deserialize)]
     #[serde(transparent)]
+    #[doc = "Server permissions"]
     pub struct ServerPermissions: u32 {
         const VIEW = 0b00000000000000000000000000000001;            // 1
         const MANAGE_ROLES = 0b00000000000000000000000000000010;   // 2
@@ -245,18 +283,25 @@ bitflags::bitflags! {
     }
 }
 
+/// A member
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Member {
+    /// The member id, a composite key of the server id and the user id.
     #[serde(rename = "_id")]
     pub id: MemberId,
+    /// The nickname
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub nickname: Option<String>,
+    /// The avatar
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub avatar: Option<Attachment>,
+    /// The roles
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub roles: Vec<RoleId>,
 }
 
+/// A member where all the fields are optional, and can be treated as
+/// a patch that can be applied to a [`Member`].
 #[derive(Serialize, Deserialize, Default, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct PartialMember {
     #[serde(rename = "_id", default, skip_serializing_if = "Option::is_none")]
@@ -270,6 +315,7 @@ pub struct PartialMember {
 }
 
 impl PartialMember {
+    /// Treat self as a patch and apply it to member.
     pub fn patch(self, member: &mut Member) {
         let PartialMember {
             id: pid,
@@ -299,6 +345,7 @@ impl PartialMember {
     }
 }
 
+/// A server field, that can be used to unset a field in a [`Server`].
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub enum ServerField {
     Icon,
@@ -307,6 +354,7 @@ pub enum ServerField {
 }
 
 impl ServerField {
+    /// Treats self as a patch and removes the field from the server.
     pub fn remove_patch(self, server: &mut Server) {
         match self {
             Self::Icon => server.icon = None,
@@ -316,6 +364,7 @@ impl ServerField {
     }
 }
 
+/// A member field, that can be used to unset a field in a [`Member`].
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub enum MemberField {
     Nickname,
@@ -323,6 +372,7 @@ pub enum MemberField {
 }
 
 impl MemberField {
+    /// Treats self as a patch and removes the field from the member.
     pub fn remove_patch(self, member: &mut Member) {
         match self {
             Self::Nickname => member.nickname = None,

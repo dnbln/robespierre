@@ -20,6 +20,7 @@ use robespierre_models::{
 
 use crate::utils::{PermissionsUpdateRequest, SendMessageRequest};
 
+/// Any error that can happen while requesting / decoding
 #[derive(Debug, thiserror::Error)]
 pub enum HttpError {
     #[error("reqwest: {0}")]
@@ -31,6 +32,7 @@ pub enum HttpError {
 
 pub type Result<T = ()> = StdResult<T, HttpError>;
 
+/// A value that can be used to authenticate on the REST API, either as a bot or as a non-bot user.
 pub enum HttpAuthentication<'a> {
     BotToken {
         token: &'a str,
@@ -77,6 +79,7 @@ impl AuthExt for HeaderMap {
     }
 }
 
+/// An instance of a client to the REST API
 pub struct Http {
     client: reqwest::Client,
     instance_data: RevoltInstanceData,
@@ -97,6 +100,7 @@ macro_rules! autumn_tag_upload {
 }
 
 impl Http {
+    /// Creates a new client from the authentication
     pub async fn new<'auth>(auth: impl Into<HttpAuthentication<'auth>>) -> Result<Self> {
         let mut default_headers = HeaderMap::new().auth(&auth.into());
         default_headers.insert(reqwest::header::ACCEPT, HeaderValue::from_static("*/*"));
@@ -121,6 +125,7 @@ impl Http {
             .await?)
     }
 
+    /// Gets an user from the api
     pub async fn fetch_user(&self, user_id: UserId) -> Result<User> {
         Ok(self
             .client
@@ -132,6 +137,7 @@ impl Http {
             .await?)
     }
 
+    /// Edits an user
     pub async fn edit_user(&self, patch: UserEditPatch) -> Result {
         self.client
             .patch(ep!("/users/@me"))
@@ -143,6 +149,7 @@ impl Http {
         Ok(())
     }
 
+    /// Gets information abot an user profile
     pub async fn fetch_user_profile(&self, user_id: UserId) -> Result<UserProfileData> {
         Ok(self
             .client
@@ -154,6 +161,7 @@ impl Http {
             .await?)
     }
 
+    /// Gets dm channels / groups.
     pub async fn fetch_dm_channels(&self) -> Result<Vec<DmChannel>> {
         Ok(self
             .client
@@ -165,6 +173,7 @@ impl Http {
             .await?)
     }
 
+    /// Opens a dm with user
     pub async fn open_dm(&self, user_id: UserId) -> Result<DmChannel> {
         Ok(self
             .client
@@ -176,6 +185,7 @@ impl Http {
             .await?)
     }
 
+    /// Fetches relationships of the current user
     pub async fn fetch_relationships(&self) -> Result<Vec<Relationship>> {
         Ok(self
             .client
@@ -187,6 +197,7 @@ impl Http {
             .await?)
     }
 
+    /// Fetches your relationship with the given user
     pub async fn fetch_relationship(&self, user_id: UserId) -> Result<Relationship> {
         Ok(self
             .client
@@ -198,6 +209,7 @@ impl Http {
             .await?)
     }
 
+    /// Sends or accepts a friend request to / from the user with given username
     pub async fn send_friend_request(&self, username: &str) -> Result<NewRelationshipResponse> {
         Ok(self
             .client
@@ -209,6 +221,7 @@ impl Http {
             .await?)
     }
 
+    /// Denies a friend request
     pub async fn deny_friend_request(&self, username: &str) -> Result<NewRelationshipResponse> {
         Ok(self
             .client
@@ -220,6 +233,7 @@ impl Http {
             .await?)
     }
 
+    /// Blocks an user
     pub async fn block(&self, user_id: UserId) -> Result<NewRelationshipResponse> {
         Ok(self
             .client
@@ -231,6 +245,7 @@ impl Http {
             .await?)
     }
 
+    /// Unblocks an user
     pub async fn unblock(&self, user_id: UserId) -> Result<NewRelationshipResponse> {
         Ok(self
             .client
@@ -242,6 +257,7 @@ impl Http {
             .await?)
     }
 
+    /// Gets the channel given the id
     pub async fn fetch_channel(&self, channel_id: ChannelId) -> Result<Channel> {
         Ok(self
             .client
@@ -253,6 +269,7 @@ impl Http {
             .await?)
     }
 
+    /// Edits the channel given by id
     pub async fn edit_channel(
         &self,
         channel_id: ChannelId,
@@ -288,6 +305,7 @@ impl Http {
         Ok(())
     }
 
+    /// Closes a channel / leaves group
     pub async fn close_channel(&self, channel_id: ChannelId) -> Result {
         self.client
             .delete(ep!("/channels/{}" channel_id))
@@ -298,6 +316,7 @@ impl Http {
         Ok(())
     }
 
+    /// Creates an invite
     pub async fn create_invite(
         &self,
         channel_id: ChannelId,
@@ -312,6 +331,7 @@ impl Http {
             .await?)
     }
 
+    /// Sets role permissions
     pub async fn set_role_permissions(
         &self,
         channel_id: ChannelId,
@@ -328,6 +348,7 @@ impl Http {
         Ok(())
     }
 
+    /// Sets default permissions
     pub async fn set_default_permissions(
         &self,
         channel_id: ChannelId,
@@ -343,6 +364,7 @@ impl Http {
         Ok(())
     }
 
+    /// Sends a message
     pub async fn send_message(
         &self,
         channel_id: ChannelId,
@@ -367,6 +389,7 @@ impl Http {
             .await?)
     }
 
+    /// Fetches messages
     pub async fn fetch_messages(
         &self,
         channel: ChannelId,
@@ -393,6 +416,7 @@ impl Http {
         }
     }
 
+    /// Fetches a single message
     pub async fn fetch_message(&self, channel: ChannelId, message: MessageId) -> Result<Message> {
         Ok(self
             .client
@@ -404,6 +428,7 @@ impl Http {
             .await?)
     }
 
+    /// Edits a message to contain content `content`
     pub async fn edit_message(
         &self,
         channel: ChannelId,
@@ -423,6 +448,7 @@ impl Http {
         Ok(())
     }
 
+    /// Deletes a message
     pub async fn delete_message(&self, channel: ChannelId, message: MessageId) -> Result {
         self.client
             .delete(ep!("/channels/{}/messages/{}" channel, message))
@@ -432,6 +458,7 @@ impl Http {
         Ok(())
     }
 
+    /// Creates a group
     pub async fn create_group(
         &self,
         name: String,
@@ -464,6 +491,7 @@ impl Http {
             .await?)
     }
 
+    /// Fetches group members
     pub async fn fetch_group_members(&self, group: ChannelId) -> Result<Vec<User>> {
         Ok(self
             .client
@@ -477,6 +505,7 @@ impl Http {
 
     // TODO: groups
 
+    /// Fetches a server
     pub async fn fetch_server(&self, server: ServerId) -> Result<Server> {
         Ok(self
             .client
@@ -488,6 +517,7 @@ impl Http {
             .await?)
     }
 
+    /// Edits a server
     pub async fn edit_server(
         &self,
         server_id: ServerId,
@@ -511,6 +541,7 @@ impl Http {
         Ok(())
     }
 
+    /// Deletes a server
     pub async fn delete_server(&self, server_id: ServerId) -> Result {
         self.client
             .delete(ep!("/servers/{}" server_id))
@@ -521,6 +552,7 @@ impl Http {
         Ok(())
     }
 
+    /// Creates a server
     pub async fn create_server(
         &self,
         name: String,
@@ -549,6 +581,7 @@ impl Http {
             .await?)
     }
 
+    /// Creates a channel
     pub async fn create_channel(
         &self,
         server: ServerId,
@@ -582,6 +615,7 @@ impl Http {
         Ok(())
     }
 
+    /// Fetches invites in server
     pub async fn fetch_invites(&self, server: ServerId) -> Result<Vec<FetchInviteResult>> {
         Ok(self
             .client
@@ -593,6 +627,7 @@ impl Http {
             .await?)
     }
 
+    /// Marks server as read
     pub async fn mark_server_as_read(&self, server: ServerId) -> Result {
         self.client
             .put(ep!("/servers/{}/ack" server))
@@ -602,6 +637,7 @@ impl Http {
         Ok(())
     }
 
+    /// Fetches member in server
     pub async fn fetch_member(&self, server_id: ServerId, user_id: UserId) -> Result<Member> {
         Ok(self
             .client
@@ -613,6 +649,7 @@ impl Http {
             .await?)
     }
 
+    /// Edits member in server
     pub async fn edit_member(
         &self,
         server_id: ServerId,
@@ -635,6 +672,7 @@ impl Http {
         Ok(())
     }
 
+    /// Kicks member out of server
     pub async fn kick_member(&self, server_id: ServerId, user_id: UserId) -> Result {
         self.client
             .delete(ep!("/servers/{}/members/{}" server_id, user_id))
@@ -645,6 +683,7 @@ impl Http {
         Ok(())
     }
 
+    /// Fetches all members in a server
     pub async fn fetch_all_members(&self, server_id: ServerId) -> Result<FetchMembersResult> {
         Ok(self
             .client
@@ -656,6 +695,7 @@ impl Http {
             .await?)
     }
 
+    /// Bans an user from the server
     pub async fn ban_user(
         &self,
         server_id: ServerId,
@@ -677,6 +717,7 @@ impl Http {
         Ok(())
     }
 
+    /// Unbans an user from the server
     pub async fn unban_user(&self, server_id: ServerId, user_id: UserId) -> Result {
         self.client
             .delete(ep!("/servers/{}/bans/{}" server_id, user_id))
@@ -687,6 +728,7 @@ impl Http {
         Ok(())
     }
 
+    /// Fetches all the users who are banned and the reasons associated with their bans if available
     pub async fn fetch_bans(&self, server_id: ServerId) -> Result<FetchBansResult> {
         Ok(self
             .client
@@ -704,6 +746,7 @@ impl Http {
     // TODO invites
     // TODO sync
 
+    /// Uploads a file to autumn, returning the [`AttachmentId`]
     pub async fn upload_autumn(
         &self,
         tag: AutumnTag,
@@ -731,6 +774,7 @@ impl Http {
     }
 }
 
+/// Result when fetching multiple messages
 #[derive(serde::Deserialize)]
 pub struct FetchMessagesResult {
     pub messages: Vec<Message>,
@@ -740,12 +784,14 @@ pub struct FetchMessagesResult {
     pub members: Vec<Member>,
 }
 
+/// Result when fetching members
 #[derive(serde::Deserialize)]
 pub struct FetchMembersResult {
     pub users: Vec<User>,
     pub members: Vec<Member>,
 }
 
+/// Result when fetching bans
 #[derive(serde::Deserialize)]
 pub struct FetchBansResult {
     pub users: Vec<FetchBansUser>,

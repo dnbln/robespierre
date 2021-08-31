@@ -42,9 +42,10 @@ impl IdString {
     }
 }
 
+/// An error that can occur while parsing an IdString
 #[derive(thiserror::Error, Debug)]
 pub enum IdStringDeserializeError {
-    #[error("invalid character {c} at position {pos}")]
+    #[error("invalid character '{c}' at position {pos}")]
     InvalidCharacter { pos: usize, c: char },
     #[error("incorrect length: is {len}, expected {expected}")]
     IncorrectLength { len: usize, expected: usize },
@@ -138,42 +139,57 @@ macro_rules! id_impl {
     };
 }
 
+/// Id type for users.
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(transparent)]
 pub struct UserId(IdString);
 
 id_impl! {UserId}
 
+
+/// Id type for channels.
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(transparent)]
 pub struct ChannelId(IdString);
 
 id_impl! {ChannelId}
 
+/// Id type for messages.
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(transparent)]
 pub struct MessageId(IdString);
 
 id_impl! {MessageId}
 
+/// Id type for servers.
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(transparent)]
 pub struct ServerId(IdString);
 
 id_impl! {ServerId}
 
+/// Id type for roles.
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(transparent)]
 pub struct RoleId(IdString);
 
 id_impl! {RoleId}
 
+/// Id type for members.
+///
+/// Note: it is a pair of a [`ServerId`] and [`UserId`]
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct MemberId {
     pub server: ServerId,
     pub user: UserId,
 }
 
+/// Id type for attachments
+///
+/// Attachment ids are returned by `Autumn`.
+// and can be from 1 up to 128 characters
+// right now uploading a file gives a 42
+// char id
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(try_from = "String", into = "String")]
 pub struct AttachmentId([u8; 128], usize); // buffer + string slice length

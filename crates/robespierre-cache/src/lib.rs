@@ -1,3 +1,5 @@
+// TODO: documentation
+
 use std::{
     collections::{hash_map::Entry, HashMap, VecDeque},
     iter::FromIterator,

@@ -20,6 +20,8 @@ use tokio_rustls::client::TlsStream;
 
 use serde::{Deserialize, Serialize};
 
+
+/// Errors that can occur while working with ws messages / events.
 #[derive(Debug, thiserror::Error)]
 pub enum EventsError {
     #[error("tungstenite error: {0}")]
@@ -37,6 +39,8 @@ pub enum EventsError {
 
 pub type Result<T = ()> = StdResult<T, EventsError>;
 
+
+/// Any message the client can send to the server.
 #[derive(Serialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(tag = "type")]
 pub enum ClientToServerEvent {
@@ -61,6 +65,7 @@ pub enum ClientToServerEvent {
     },
 }
 
+/// Event received after authentication.
 #[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct ReadyEvent {
     pub users: Vec<User>,
@@ -69,6 +74,7 @@ pub struct ReadyEvent {
     pub members: Vec<Member>,
 }
 
+/// Any message that the server can send to the client.
 #[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(tag = "type")]
 pub enum ServerToClientEvent {
@@ -181,8 +187,11 @@ struct ConnectionInternal {
     stream: WebSocketStream<Stream<TokioAdapter<TcpStream>, TokioAdapter<TlsStream<TcpStream>>>>,
     closed: bool,
 }
+
+/// A websocket connection.
 pub struct Connection(ConnectionInternal);
 
+/// A value that can be used to authenticate on the websocket, either as a bot or as a non-bot user.
 pub enum Authentication<'a> {
     Bot {
         token: &'a str,
@@ -199,17 +208,41 @@ pub trait RawEventHandler: Send + Sync + Clone + 'static {
     async fn handle(self, ctx: Self::Context, event: ServerToClientEvent);
 }
 
+
+/// A message to a [`Connection`]
 #[derive(Debug, Copy, Clone)]
 pub enum ConnectionMessage {
+    /// Tells the [`Connection`] to emit a [`ClientToServerEvent::BeginTyping`] event in the given channel.
     StartTyping { channel: ChannelId },
+    /// Tells the [`Connection`] to emit a [`ClientToServerEvent::EndTyping`] event in the given channel.
     StopTyping { channel: ChannelId },
+    /// Tells the [`Connection`] to close itself, and return from the loop.
+    Close,
 }
 
-pub trait Context: Sized {
-    fn set_sender(self, tx: UnboundedSender<ConnectionMessage>) -> Self;
+#[derive(Clone, Debug)]
+pub struct ConnectionMessanger(UnboundedSender<ConnectionMessage>);
+
+impl ConnectionMessanger {
+    /// Sends a message to the [`Connection`], describing something it should do.
+    pub fn send(&self, message: ConnectionMessage) {
+        self.0
+            .send(message)
+            .expect("Something went terribly wrong and the receiver closed");
+    }
+}
+
+/// Trait implemented on types that can be passed as a context to [`Connection::run`],
+/// but not necessary for [`RawEventHandler::Context`]
+pub trait Context: Sized + Clone + Send + 'static {
+    /// Gives the context a messanger it can communicate to the [`Connection`] with,
+    /// allowing it to send messages like "BeginTyping", "EndTyping", or tell the connection
+    /// to close itself, for a clean shutdown.
+    fn set_messanger(self, messanger: ConnectionMessanger) -> Self;
 }
 
 impl Connection {
+    /// Connects to the websocket, and authenticates, returning the socket or an error if it failed.
     pub async fn connect<'a>(auth: impl Into<Authentication<'a>>) -> Result<Self> {
         tracing::debug!("Connecting to websocket");
         let (stream, _response) = connect_async("wss://ws.revolt.chat").await?;
@@ -224,9 +257,17 @@ impl Connection {
         Ok(connection)
     }
 
+    /// Runs the "main loop", listening for events on the websocket and
+    /// spawning tokio tasks to handle them, cloning the context, and giving
+    /// it a messanger.
+    ///
+    /// If you intend to implement this yourself, you can
+    /// use [`Connection::get_event`] to get events and [`Connection::hb`]
+    /// to "heartbeat"(send a ping message to the server so it doesn't
+    /// close the socket).
     pub async fn run<C, H>(mut self, ctx: C, handler: H) -> Result
     where
-        C: Clone + Context + 'static,
+        C: Context,
         H: RawEventHandler<Context = C>,
     {
         let mut int = tokio::time::interval(std::time::Duration::from_secs(15));
@@ -254,7 +295,7 @@ impl Connection {
                     let event = event?;
 
                     let handler = handler.clone();
-                    let ctx = ctx.clone().set_sender(tx.clone());
+                    let ctx = ctx.clone().set_messanger(ConnectionMessanger(tx.clone()));
 
                     let fut = handler.handle(ctx, event);
                     tokio::spawn(fut);
@@ -263,7 +304,11 @@ impl Connection {
                     ConnectionMessage::StartTyping { channel } => {
                         self.start_typing(channel).await?
                     }
-                    ConnectionMessage::StopTyping { channel } => self.end_typing(channel).await?,
+                    ConnectionMessage::StopTyping { channel } => self.stop_typing(channel).await?,
+                    ConnectionMessage::Close => {
+                        self.0.stream.close(None).await?;
+                        return Ok(()); // will drop self
+                    }
                 },
                 Event::ConnectionMessage(None) => {
                     // can never happen as the tx is never moved outside of this function,
@@ -271,6 +316,7 @@ impl Connection {
                     // also, the receiver is never dropped / closed
 
                     // (unless ? propagates the error in which case this block shouldn't be reached)
+                    unreachable!()
                 }
                 Event::Tick => {
                     let result = self.0.hb().await;
@@ -282,20 +328,28 @@ impl Connection {
         }
     }
 
+    /// Sends a ping message to the server, so it doesn't close the connection.
     pub async fn hb(&mut self) -> Result {
         self.0.hb().await
     }
 
+    /// Gets the next event from the server.
     pub async fn get_event(&mut self) -> Result<ServerToClientEvent> {
         self.0.get_event().await
     }
 
+    /// Sends a [`ClientToServerEvent::BeginTyping`] event, for the given channel.
+    ///
+    /// Has a timeout of ~3 seconds, so if you want it to display "... is typing"
+    /// for longer than that, you have to call it again.
     pub async fn start_typing(&mut self, channel: ChannelId) -> Result {
         self.0
             .send_event(ClientToServerEvent::BeginTyping { channel })
             .await
     }
-    pub async fn end_typing(&mut self, channel: ChannelId) -> Result {
+
+    /// Sends a [`ClientToServerEvent::EndTyping`] event, for the given channel.
+    pub async fn stop_typing(&mut self, channel: ChannelId) -> Result {
         self.0
             .send_event(ClientToServerEvent::EndTyping { channel })
             .await
@@ -303,7 +357,7 @@ impl Connection {
 }
 
 impl ConnectionInternal {
-    pub async fn hb(&mut self) -> Result {
+    async fn hb(&mut self) -> Result {
         tracing::debug!("sending Ping message");
 
         self.send_event(ClientToServerEvent::Ping { time: 0 })
@@ -345,7 +399,7 @@ impl ConnectionInternal {
         Ok(())
     }
 
-    pub async fn send_event(&mut self, message: ClientToServerEvent) -> Result {
+    async fn send_event(&mut self, message: ClientToServerEvent) -> Result {
         use futures::sink::SinkExt;
 
         self.stream
@@ -355,7 +409,7 @@ impl ConnectionInternal {
         Ok(())
     }
 
-    pub async fn get_event(&mut self) -> Result<ServerToClientEvent> {
+    async fn get_event(&mut self) -> Result<ServerToClientEvent> {
         if self.closed {
             return Err(EventsError::Closed);
         }

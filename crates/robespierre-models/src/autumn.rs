@@ -1,5 +1,6 @@
 use std::fmt;
 
+/// An autumn tag that you can upload images under.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum AutumnTag {
     Attachments,

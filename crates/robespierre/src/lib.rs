@@ -1,9 +1,7 @@
 use std::sync::Arc;
 
 use robespierre_cache::{Cache, CacheConfig, CommitToCache, HasCache};
-use robespierre_events::{
-    ConnectionMessage, EventsError, RawEventHandler, ReadyEvent, ServerToClientEvent,
-};
+use robespierre_events::{ConnectionMessage, ConnectionMessanger, EventsError, RawEventHandler, ReadyEvent, ServerToClientEvent};
 use robespierre_http::{Http, HttpAuthentication, HttpError};
 use robespierre_models::{
     channel::{Channel, ChannelField, Message, PartialChannel, PartialMessage},
@@ -13,7 +11,6 @@ use robespierre_models::{
 };
 
 pub use async_trait::async_trait;
-use tokio::sync::mpsc::UnboundedSender;
 
 pub mod model;
 
@@ -27,11 +24,16 @@ pub enum Error {
 
 pub type Result<T = ()> = std::result::Result<T, Error>;
 
+
+/// A high-level event handler. Defines handlers for all the different types of events.
 #[async_trait::async_trait]
 #[allow(unused_variables)]
 pub trait EventHandler: Send + Sync {
+    /// Gets called when the [`ReadyEvent`] is received.
     async fn on_ready(&self, ctx: Context, ready: ReadyEvent) {}
+    /// Gets called when a message is received.
     async fn on_message(&self, ctx: Context, message: Message) {}
+    /// Gets called when a message is updated.
     async fn on_message_update(
         &self,
         ctx: Context,
@@ -40,8 +42,11 @@ pub trait EventHandler: Send + Sync {
         modifications: PartialMessage,
     ) {
     }
+    /// Gets called when a message is deleted.
     async fn on_message_delete(&self, ctx: Context, channel_id: ChannelId, message_id: MessageId) {}
+    /// Gets called when a channel is created.
     async fn on_channel_create(&self, ctx: Context, channel: Channel) {}
+    /// Gets called when a channel is updated.
     async fn on_channel_update(
         &self,
         ctx: Context,
@@ -50,11 +55,17 @@ pub trait EventHandler: Send + Sync {
         remove: Option<ChannelField>,
     ) {
     }
+    /// Gets called when a channel is deleted.
     async fn on_channel_delete(&self, ctx: Context, channel_id: ChannelId) {}
+    /// Gets called when an user joins a group.
     async fn on_group_join(&self, ctx: Context, id: ChannelId, user: UserId) {}
+    /// Gets called when an user leaves a group.
     async fn on_group_leave(&self, ctx: Context, id: ChannelId, user: UserId) {}
+    /// Gets called when someone starts typing in a channel.
     async fn on_start_typing(&self, ctx: Context, channel: ChannelId, user: UserId) {}
+    /// Gets called when someone stops typing in a channel.
     async fn on_stop_typing(&self, ctx: Context, channel: ChannelId, user: UserId) {}
+    /// Gets called when a server is updated.
     async fn on_server_update(
         &self,
         ctx: Context,
@@ -63,8 +74,14 @@ pub trait EventHandler: Send + Sync {
         remove: Option<ServerField>,
     ) {
     }
+    /// Gets called when a server is deleted.
+    ///
+    /// Could mean the user / bot was kicked, banned, or otherwise left it, not necessarily
+    /// that it was deleted by the owner and doesn't exist anymore.
     async fn on_server_delete(&self, ctx: Context, server: ServerId) {}
+    /// Gets called when an user joins a server.
     async fn on_server_member_join(&self, ctx: Context, server: ServerId, user: UserId) {}
+    /// Gets called when a member is updated inside a server.
     async fn on_server_member_update(
         &self,
         ctx: Context,
@@ -73,7 +90,9 @@ pub trait EventHandler: Send + Sync {
         remove: Option<MemberField>,
     ) {
     }
+    /// Gets called when a member leaves a server.
     async fn on_server_member_leave(&self, ctx: Context, server: ServerId, user: UserId) {}
+    /// Gets called when a server role is updated.
     async fn on_server_role_update(
         &self,
         ctx: Context,
@@ -83,7 +102,9 @@ pub trait EventHandler: Send + Sync {
         remove: Option<RoleField>,
     ) {
     }
+    /// Gets called when a server role is deleted.
     async fn on_server_role_delete(&self, ctx: Context, server: ServerId, role: RoleId) {}
+    /// Gets called when an user is updated.
     async fn on_user_update(
         &self,
         ctx: Context,
@@ -92,6 +113,7 @@ pub trait EventHandler: Send + Sync {
         remove: Option<UserField>,
     ) {
     }
+    /// Gets called when the relationship with an user is updated.
     async fn on_user_relationship_update(
         &self,
         ctx: Context,
@@ -401,7 +423,7 @@ where
 pub struct Context {
     pub http: Arc<Http>,
     pub cache: Option<Arc<Cache>>,
-    pub tx: Option<UnboundedSender<robespierre_events::ConnectionMessage>>,
+    messanger: Option<ConnectionMessanger>,
 }
 
 pub enum Authentication {
@@ -412,6 +434,21 @@ pub enum Authentication {
         user_id: UserId,
         session_token: String,
     },
+}
+
+impl Authentication {
+    pub fn bot(token: impl Into<String>) -> Self {
+        Self::Bot {
+            token: token.into(),
+        }
+    }
+
+    pub fn user(user_id: UserId, session_token: impl Into<String>) -> Self {
+        Self::User {
+            user_id,
+            session_token: session_token.into(),
+        }
+    }
 }
 
 impl<'a> From<&'a Authentication> for robespierre_events::Authentication<'a> {
@@ -453,7 +490,7 @@ impl Context {
         Self {
             http: Arc::new(http),
             cache: None,
-            tx: None,
+            messanger: None,
         }
     }
 
@@ -465,28 +502,26 @@ impl Context {
     }
 
     pub(crate) fn start_typing(&self, channel: ChannelId) {
-        let tx = self.tx.as_ref().expect(
+        let messanger = self.messanger.as_ref().expect(
             "need sender; did you forget to call .set_sender(...) on robespierre::Context?",
         );
 
-        tx.send(ConnectionMessage::StartTyping { channel })
-            .expect("Something went terribly wrong and the receiver closed");
+        messanger.send(ConnectionMessage::StartTyping { channel });
     }
 
     pub(crate) fn stop_typing(&self, channel: ChannelId) {
-        let tx = self.tx.as_ref().expect(
+        let messanger = self.messanger.as_ref().expect(
             "need sender; did you forget to call .set_sender(...) on robespierre::Context?",
         );
 
-        tx.send(ConnectionMessage::StopTyping { channel })
-            .expect("Something went terribly wrong and the receiver closed");
+        messanger.send(ConnectionMessage::StopTyping { channel });
     }
 }
 
 impl robespierre_events::Context for Context {
-    fn set_sender(self, tx: UnboundedSender<robespierre_events::ConnectionMessage>) -> Self {
+    fn set_messanger(self, messanger: ConnectionMessanger) -> Self {
         Self {
-            tx: Some(tx),
+            messanger: Some(messanger),
             ..self
         }
     }

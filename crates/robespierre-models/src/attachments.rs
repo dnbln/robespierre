@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::id::AttachmentId;
 
+/// Information about a file size
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(transparent)]
 pub struct FileSize {
@@ -14,6 +15,8 @@ impl FileSize {
     }
 }
 
+/// Attachment to a message, but can be any other media
+/// like avatars, server icons, channel icons, banners
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Attachment {
     #[serde(rename = "_id")]
@@ -25,6 +28,7 @@ pub struct Attachment {
     pub content_type: String,
 }
 
+/// Attachment metadata
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(tag = "type")]
 pub enum AttachmentMetadata {
@@ -35,6 +39,7 @@ pub enum AttachmentMetadata {
     Video { width: usize, height: usize },
 }
 
+/// Attachment tag.
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(rename_all = "lowercase")]
 pub enum AttachmentTag {
