@@ -330,3 +330,11 @@ impl MemberField {
         }
     }
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+pub struct Ban {
+    #[serde(rename = "_id")]
+    pub id: MemberId,
+    #[serde(default)]
+    pub reason: Option<String>,
+}
