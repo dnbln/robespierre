@@ -1,6 +1,10 @@
 use std::result::Result as StdResult;
 
-use reqwest::{header::HeaderMap, RequestBuilder};
+use reqwest::{
+    header::{HeaderMap, HeaderValue},
+    multipart::{Form, Part},
+    RequestBuilder,
+};
 use robespierre_models::{
     autumn::AutumnTag,
     channel::{
@@ -93,7 +97,8 @@ macro_rules! autumn_tag_upload {
 
 impl Http {
     pub async fn new<'auth>(auth: impl Into<HttpAuthentication<'auth>>) -> Result<Self> {
-        let default_headers = HeaderMap::new().auth(&auth.into());
+        let mut default_headers = HeaderMap::new().auth(&auth.into());
+        default_headers.insert(reqwest::header::ACCEPT, HeaderValue::from_static("*/*"));
         let client = reqwest::Client::builder()
             .default_headers(default_headers)
             .build()
@@ -570,18 +575,24 @@ impl Http {
     // TODO invites
     // TODO sync
 
-    pub async fn upload_autumn(&self, tag: AutumnTag, bytes: Vec<u8>) -> Result<AttachmentId> {
+    pub async fn upload_autumn(
+        &self,
+        tag: AutumnTag,
+        name: String,
+        bytes: Vec<u8>,
+    ) -> Result<AttachmentId> {
         #[derive(serde::Deserialize)]
         struct AutumnUploadResponse {
             id: AttachmentId,
         }
 
-        let form =
-            reqwest::multipart::Form::new().part("aaaa", reqwest::multipart::Part::bytes(bytes));
-        let resp = self
+        let part = Part::bytes(bytes).file_name(name.clone());
+        let form = Form::new().part(name, part);
+        let req = self
             .client
             .post(autumn_tag_upload!(self, tag))
-            .multipart(form)
+            .multipart(form);
+        let resp = req
             .send()
             .await?
             .error_for_status()?

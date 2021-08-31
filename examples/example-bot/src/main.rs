@@ -5,7 +5,8 @@ use robespierre::{Authentication, CacheWrap};
 use robespierre_cache::CacheConfig;
 use robespierre_events::Connection;
 use robespierre_http::Http;
-use robespierre_models::channel::Message;
+use robespierre_models::autumn::AutumnTag;
+use robespierre_models::channel::{Message, ReplyData};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -45,22 +46,31 @@ impl EventHandler for Handler {
         message.channel.start_typing(&ctx);
         tokio::time::sleep(std::time::Duration::new(2, 500_000_000)).await;
 
-        message.channel.start_typing(&ctx);
-        tokio::time::sleep(std::time::Duration::new(2, 500_000_000)).await;
-
-        message.channel.start_typing(&ctx);
-        tokio::time::sleep(std::time::Duration::new(2, 500_000_000)).await;
+        let att_id = ctx
+            .http
+            .upload_autumn(
+                AutumnTag::Attachments,
+                "help".to_string(),
+                "help me".to_string().into_bytes(),
+            )
+            .await
+            .unwrap();
 
         let _ = message
-            .reply(
-                &ctx,
-                format!(
+            .channel
+            .send_message(&ctx, |msg| {
+                msg.content(format!(
                     "Hello {} from {}{}",
                     author.mention(),
                     channel.mention(),
                     server.map_or_else(Default::default, |it| format!(" in {}", it.name))
-                ),
-            )
+                ))
+                .reply(ReplyData {
+                    id: message.id,
+                    mention: true,
+                })
+                .attachment(att_id)
+            })
             .await;
 
         message.channel.stop_typing(&ctx);
