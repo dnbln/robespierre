@@ -1,4 +1,8 @@
-use std::{convert::{Infallible, TryFrom, TryInto}, fmt::Display, str::FromStr};
+use std::{
+    convert::{Infallible, TryFrom, TryInto},
+    fmt::Display,
+    str::FromStr,
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -172,35 +176,35 @@ pub struct MemberId {
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(try_from = "String", into = "String")]
-pub struct AttachmentId([u8; 128]);
-
-impl AttachmentId {
-    pub fn from_str_unchecked(s: &str) -> Self {
-        Self(s.as_bytes().try_into().unwrap())
-    }
-
-    pub fn from_string_unchecked(s: String) -> Self {
-        Self(s.as_bytes().try_into().unwrap())
-    }
-}
+pub struct AttachmentId([u8; 128], usize); // buffer + string slice length
 
 impl FromStr for AttachmentId {
     type Err = Infallible;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self(s.as_bytes().try_into().unwrap()))
+        Ok(Self::from(s))
+    }
+}
+
+impl<'a> From<&'a str> for AttachmentId {
+    fn from(s: &'a str) -> Self {
+        let len = s.len();
+        let mut buf = [0; 128];
+        buf[..len].copy_from_slice(s.as_bytes());
+
+        Self(buf, len)
     }
 }
 
 impl From<String> for AttachmentId {
     fn from(s: String) -> Self {
-        Self(s.as_bytes().try_into().unwrap())
+        Self::from(s.as_str())
     }
 }
 
 impl AsRef<str> for AttachmentId {
     fn as_ref(&self) -> &str {
-        unsafe { std::str::from_utf8_unchecked(&self.0) }
+        unsafe { std::str::from_utf8_unchecked(&self.0[..self.1]) }
     }
 }
 
