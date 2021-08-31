@@ -1,6 +1,9 @@
 use std::result::Result as StdResult;
 
-use reqwest::RequestBuilder;
+use reqwest::{
+    header::{HeaderMap, HeaderValue},
+    RequestBuilder,
+};
 use robespierre_models::{
     attachments::AutumnFileId,
     channel::{
@@ -25,13 +28,13 @@ pub enum HttpError {
 
 pub type Result<T = ()> = StdResult<T, HttpError>;
 
-pub enum HttpAuthentication {
+pub enum HttpAuthentication<'a> {
     BotToken {
-        token: String,
+        token: &'a str,
     },
     UserSession {
         user_id: UserId,
-        session_token: String,
+        session_token: &'a str,
     },
 }
 trait AuthExt: Sized {
@@ -41,16 +44,76 @@ trait AuthExt: Sized {
 impl AuthExt for RequestBuilder {
     fn auth(self, auth: &HttpAuthentication) -> Self {
         match auth {
-            HttpAuthentication::BotToken { token } => self.header("x-bot-token", token),
-            HttpAuthentication::UserSession { user_id, session_token } => {
-                self.header("x-session-token", session_token).header("x-user-id", format!("{}", user_id))
-            }
+            HttpAuthentication::BotToken { token } => self.header("x-bot-token", *token),
+            HttpAuthentication::UserSession {
+                user_id,
+                session_token,
+            } => self
+                .header("x-session-token", *session_token)
+                .header("x-user-id", format!("{}", user_id)),
         }
     }
 }
 
+impl AuthExt for HeaderMap {
+    fn auth(mut self, auth: &HttpAuthentication) -> Self {
+        match auth {
+            HttpAuthentication::BotToken { token } => {
+                self.insert("x-bot-token", token.parse().unwrap());
+            }
+            HttpAuthentication::UserSession {
+                user_id,
+                session_token,
+            } => {
+                self.insert("x-session-token", session_token.parse().unwrap());
+                self.insert("x-user-id", user_id.as_ref().parse().unwrap());
+            }
+        }
+
+        self
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct RevoltInstanceData {
+    revolt: String,
+    features: RevoltInstanceFeatures,
+    ws: String,
+    app: String,
+    vapid: String,
+}
+
+#[derive(serde::Deserialize)]
+struct EnabledUrl {
+    enabled: bool,
+    url: String,
+}
+
+#[derive(serde::Deserialize)]
+struct EnabledUrlWs {
+    enabled: bool,
+    url: String,
+    ws: String,
+}
+
+#[derive(serde::Deserialize)]
+struct RevoltInstanceFeatures {
+    registration: bool,
+    captcha: CaptchaInfo,
+    email: bool,
+    invite_only: bool,
+    autumn: EnabledUrl,
+    january: EnabledUrl,
+    voso: EnabledUrlWs,
+}
+
+#[derive(serde::Deserialize)]
+struct CaptchaInfo {
+    enabled: bool,
+    key: String,
+}
+
 pub struct Http {
-    auth: HttpAuthentication,
     client: reqwest::Client,
 }
 
@@ -63,18 +126,19 @@ macro_rules! ep {
 }
 
 impl Http {
-    pub fn new(auth: HttpAuthentication) -> Self {
-        Self {
-            auth,
-            client: reqwest::Client::new(),
-        }
+    pub async fn new<'auth>(auth: impl Into<HttpAuthentication<'auth>>) -> Self {
+        let default_headers = HeaderMap::new().auth(&auth.into());
+        let client = reqwest::Client::builder()
+            .default_headers(default_headers)
+            .build()
+            .unwrap();
+        Self { client }
     }
 
     pub async fn fetch_user(&self, user_id: UserId) -> Result<User> {
         Ok(self
             .client
             .get(ep!("/users/{}" user_id))
-            .auth(&self.auth)
             .send()
             .await?
             .error_for_status()?
@@ -85,7 +149,6 @@ impl Http {
     pub async fn edit_user(&self, patch: UserEditPatch) -> Result {
         self.client
             .patch(ep!("/users/@me"))
-            .auth(&self.auth)
             .json(&patch)
             .send()
             .await?
@@ -98,7 +161,6 @@ impl Http {
         Ok(self
             .client
             .get(ep!("/users/{}/profile" user_id))
-            .auth(&self.auth)
             .send()
             .await?
             .error_for_status()?
@@ -110,7 +172,6 @@ impl Http {
         Ok(self
             .client
             .get(ep!("/users/dms"))
-            .auth(&self.auth)
             .send()
             .await?
             .error_for_status()?
@@ -122,7 +183,6 @@ impl Http {
         Ok(self
             .client
             .get(ep!("/users/{}/dm" user_id))
-            .auth(&self.auth)
             .send()
             .await?
             .error_for_status()?
@@ -134,7 +194,6 @@ impl Http {
         Ok(self
             .client
             .get(ep!("/users/relationships"))
-            .auth(&self.auth)
             .send()
             .await?
             .error_for_status()?
@@ -146,7 +205,6 @@ impl Http {
         Ok(self
             .client
             .get(ep!("/users/{}/relationship" user_id))
-            .auth(&self.auth)
             .send()
             .await?
             .error_for_status()?
@@ -158,7 +216,6 @@ impl Http {
         Ok(self
             .client
             .put(ep!("/users/{}/friend" username))
-            .auth(&self.auth)
             .send()
             .await?
             .error_for_status()?
@@ -170,7 +227,6 @@ impl Http {
         Ok(self
             .client
             .delete(ep!("/users/{}/friend" username))
-            .auth(&self.auth)
             .send()
             .await?
             .error_for_status()?
@@ -182,7 +238,6 @@ impl Http {
         Ok(self
             .client
             .put(ep!("/users/{}/block" user_id))
-            .auth(&self.auth)
             .send()
             .await?
             .error_for_status()?
@@ -194,7 +249,6 @@ impl Http {
         Ok(self
             .client
             .delete(ep!("/users/{}/block" user_id))
-            .auth(&self.auth)
             .send()
             .await?
             .error_for_status()?
@@ -206,7 +260,6 @@ impl Http {
         Ok(self
             .client
             .get(ep!("/channels/{}" channel_id))
-            .auth(&self.auth)
             .send()
             .await?
             .error_for_status()?
@@ -236,8 +289,12 @@ impl Http {
 
         self.client
             .patch(ep!("/channels/{}" channel_id))
-            .auth(&self.auth)
-            .json(&PatchChannelRequest { name, description, icon, remove })
+            .json(&PatchChannelRequest {
+                name,
+                description,
+                icon,
+                remove,
+            })
             .send()
             .await?
             .error_for_status()?;
@@ -248,7 +305,6 @@ impl Http {
     pub async fn close_channel(&self, channel_id: ChannelId) -> Result {
         self.client
             .delete(ep!("/channels/{}" channel_id))
-            .auth(&self.auth)
             .send()
             .await?
             .error_for_status()?;
@@ -263,7 +319,6 @@ impl Http {
         Ok(self
             .client
             .post(ep!("/channels/{}/invites" channel_id))
-            .auth(&self.auth)
             .send()
             .await?
             .error_for_status()?
@@ -279,7 +334,6 @@ impl Http {
     ) -> Result {
         self.client
             .put(ep!("/channels/{}/permissions/{}" channel_id, role_id))
-            .auth(&self.auth)
             .json(&PermissionsUpdateRequest { permissions })
             .send()
             .await?
@@ -295,7 +349,6 @@ impl Http {
     ) -> Result {
         self.client
             .put(ep!("/channels/{}/permissions/default" channel_id))
-            .auth(&self.auth)
             .json(&PermissionsUpdateRequest { permissions })
             .send()
             .await?
@@ -315,7 +368,6 @@ impl Http {
         Ok(self
             .client
             .post(ep!("/channels/{}/messages" channel_id))
-            .auth(&self.auth)
             .json(&SendMessageRequest {
                 content: content.as_ref(),
                 nonce: nonce.as_ref(),
@@ -337,7 +389,6 @@ impl Http {
         let v = self
             .client
             .get(ep!("/channels/{}/messages" channel))
-            .auth(&self.auth)
             .json(&filter)
             .send()
             .await?
@@ -360,7 +411,6 @@ impl Http {
         Ok(self
             .client
             .get(ep!("/channels/{}/messages/{}" channel, message))
-            .auth(&self.auth)
             .send()
             .await?
             .error_for_status()?
@@ -380,7 +430,6 @@ impl Http {
         }
         self.client
             .patch(ep!("/channels/{}/messages/{}" channel, message))
-            .auth(&self.auth)
             .json(&MessagePatch { content })
             .send()
             .await?
@@ -391,7 +440,6 @@ impl Http {
     pub async fn delete_message(&self, channel: ChannelId, message: MessageId) -> Result {
         self.client
             .delete(ep!("/channels/{}/messages/{}" channel, message))
-            .auth(&self.auth)
             .send()
             .await?
             .error_for_status()?;
@@ -404,7 +452,6 @@ impl Http {
         Ok(self
             .client
             .get(ep!("/servers/{}" server))
-            .auth(&self.auth)
             .send()
             .await?
             .error_for_status()?
@@ -427,7 +474,6 @@ impl Http {
 
         self.client
             .patch(ep!("/servers/{}" server_id))
-            .auth(&self.auth)
             .json(&ServerPatchRequest { server, remove })
             .send()
             .await?
@@ -439,7 +485,6 @@ impl Http {
     pub async fn delete_server(&self, server_id: ServerId) -> Result {
         self.client
             .delete(ep!("/servers/{}" server_id))
-            .auth(&self.auth)
             .send()
             .await?
             .error_for_status()?;
@@ -456,7 +501,6 @@ impl Http {
         Ok(self
             .client
             .get(ep!("/servers/{}/members/{}" server_id, user_id))
-            .auth(&self.auth)
             .send()
             .await?
             .error_for_status()?
@@ -479,7 +523,6 @@ impl Http {
         }
         self.client
             .patch(ep!("/servers/{}/members/{}" server_id, user_id))
-            .auth(&self.auth)
             .json(&PatchMemberRequest { member, remove })
             .send()
             .await?
@@ -490,7 +533,6 @@ impl Http {
     pub async fn kick_member(&self, server_id: ServerId, user_id: UserId) -> Result {
         self.client
             .delete(ep!("/servers/{}/members/{}" server_id, user_id))
-            .auth(&self.auth)
             .send()
             .await?
             .error_for_status()?;
@@ -502,7 +544,6 @@ impl Http {
         Ok(self
             .client
             .get(ep!("/servers/{}/members" server_id))
-            .auth(&self.auth)
             .send()
             .await?
             .error_for_status()?
@@ -523,7 +564,6 @@ impl Http {
         }
         self.client
             .put(ep!("/servers/{}/bans/{}" server_id, user_id))
-            .auth(&self.auth)
             .json(&BanRequest { reason })
             .send()
             .await?
@@ -535,7 +575,6 @@ impl Http {
     pub async fn unban_user(&self, server_id: ServerId, user_id: UserId) -> Result {
         self.client
             .delete(ep!("/servers/{}/bans/{}" server_id, user_id))
-            .auth(&self.auth)
             .send()
             .await?
             .error_for_status()?;

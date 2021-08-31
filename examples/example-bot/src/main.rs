@@ -1,10 +1,10 @@
 use robespierre::model::mention::Mentionable;
 use robespierre::model::ChannelIdExt;
-use robespierre::CacheWrap;
 use robespierre::{async_trait, model::MessageExt, Context, EventHandler, EventHandlerWrap};
+use robespierre::{Authentication, CacheWrap};
 use robespierre_cache::CacheConfig;
-use robespierre_events::{Authentication, Connection};
-use robespierre_http::{Http, HttpAuthentication};
+use robespierre_events::Connection;
+use robespierre_http::Http;
 use robespierre_models::channel::Message;
 
 #[tokio::main]
@@ -13,12 +13,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let token = std::env::var("TOKEN")
         .expect("Cannot get token; set environment variable TOKEN=... and run again");
+    let auth = Authentication::Bot { token };
 
-    let http = Http::new(HttpAuthentication::BotToken {
-        token: token.clone(),
-    });
-
-    let connection = Connection::connect(Authentication::Bot { token }).await?;
+    let http = Http::new(&auth).await;
+    let connection = Connection::connect(&auth).await?;
 
     let ctx = Context::new(http).with_cache(CacheConfig::default());
 

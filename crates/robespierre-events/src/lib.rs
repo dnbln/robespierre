@@ -179,18 +179,17 @@ pub enum ServerToClientEvent {
 
 struct ConnectionInternal {
     stream: WebSocketStream<Stream<TokioAdapter<TcpStream>, TokioAdapter<TlsStream<TcpStream>>>>,
-    auth: Authentication,
     closed: bool,
 }
 pub struct Connection(ConnectionInternal);
 
-pub enum Authentication {
+pub enum Authentication<'a> {
     Bot {
-        token: String,
+        token: &'a str,
     },
     User {
         user_id: UserId,
-        session_token: String,
+        session_token: &'a str,
     },
 }
 
@@ -211,15 +210,14 @@ pub trait Context: Sized {
 }
 
 impl Connection {
-    pub async fn connect(auth: Authentication) -> Result<Self> {
+    pub async fn connect<'a>(auth: impl Into<Authentication<'a>>) -> Result<Self> {
         tracing::debug!("Connecting to websocket");
         let (stream, _response) = connect_async("wss://ws.revolt.chat").await?;
         let mut internal = ConnectionInternal {
             stream,
-            auth,
             closed: false,
         };
-        internal.authenticate().await?;
+        internal.authenticate(auth.into()).await?;
 
         let connection = Self(internal);
 
@@ -314,18 +312,18 @@ impl ConnectionInternal {
         Ok(())
     }
 
-    async fn authenticate(&mut self) -> Result {
+    async fn authenticate<'a>(&mut self, auth: Authentication<'a>) -> Result {
         tracing::debug!("Authenticating");
-        self.send_event(match &self.auth {
+        self.send_event(match &auth {
             Authentication::Bot { token } => ClientToServerEvent::AuthenticateBot {
-                token: token.clone(),
+                token: token.to_string(),
             },
             Authentication::User {
                 user_id,
                 session_token,
             } => ClientToServerEvent::Authenticate {
                 user_id: user_id.clone(),
-                session_token: session_token.clone(),
+                session_token: session_token.to_string(),
             },
         })
         .await?;
