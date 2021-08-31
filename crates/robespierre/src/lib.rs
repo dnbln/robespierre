@@ -124,6 +124,8 @@ pub trait EventHandler: Send + Sync {
     }
 }
 
+/// Wraps an event handler, updating the cache and then forwarding the events
+/// to the wrapped [`EventHandler`]
 #[derive(Clone)]
 pub struct CacheWrap<T: EventHandler + Clone + 'static>(T);
 
@@ -131,6 +133,7 @@ impl<T> CacheWrap<T>
 where
     T: EventHandler + Clone + 'static,
 {
+    /// Creates a new [`CacheWrap`]
     pub fn new(wrapped: T) -> Self {
         Self(wrapped)
     }
@@ -326,6 +329,8 @@ where
     }
 }
 
+/// An object that can be passed to [`robespierre_events::Connection::run`], and
+/// distinguishes between the events and calls the relevant handler.
 #[derive(Clone)]
 pub struct EventHandlerWrap<T: EventHandler + Clone + 'static>(T);
 
