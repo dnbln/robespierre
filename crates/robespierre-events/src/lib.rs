@@ -242,7 +242,9 @@ impl Connection {
         }
 
         loop {
-            // None = we didn't get any event, but we have to ping the server or it will close the connection
+            // Event::FromServer = we got an event from the server, which we should pass to the handler
+            // Event::ConnectionMessage = we got a message from a handler, can be something like send "BeginTyping", "EndTyping" to the ws, try to close the socket
+            // Event::Tick = we didn't get any event, but we have to ping the server or it will close the connection
             let event = futures::select! {
                 event = self.0.get_event().fuse() => Event::FromServer(event),
                 connection_message = rx.recv().fuse() => Event::ConnectionMessage(connection_message),

@@ -1,8 +1,4 @@
-use std::{
-    convert::{TryFrom, TryInto},
-    fmt::Display,
-    str::FromStr,
-};
+use std::{convert::{Infallible, TryFrom, TryInto}, fmt::Display, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 
@@ -176,58 +172,29 @@ pub struct MemberId {
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(try_from = "String", into = "String")]
-pub struct AttachmentId([u8; 42]);
+pub struct AttachmentId([u8; 128]);
 
 impl AttachmentId {
-    fn check(s: &str) -> Result<(), IdStringDeserializeError> {
-        if s.len() != 42 {
-            return Err(IdStringDeserializeError::IncorrectLength {
-                expected: 42,
-                len: s.len(),
-            });
-        }
-
-        match s.find(|c: char| {
-            !('A'..='Z').contains(&c) && !('a'..='z').contains(&c) && !('0'..='9').contains(&c)
-        }) {
-            Some(pos) => {
-                let c = s.chars().nth(pos).unwrap();
-
-                return Err(IdStringDeserializeError::InvalidCharacter { c, pos });
-            }
-
-            None => {}
-        }
-
-        Ok(())
-    }
-
-    pub unsafe fn from_str_unchecked(s: &str) -> Self {
+    pub fn from_str_unchecked(s: &str) -> Self {
         Self(s.as_bytes().try_into().unwrap())
     }
 
-    pub unsafe fn from_string_unchecked(s: String) -> Self {
+    pub fn from_string_unchecked(s: String) -> Self {
         Self(s.as_bytes().try_into().unwrap())
     }
 }
 
 impl FromStr for AttachmentId {
-    type Err = IdStringDeserializeError;
+    type Err = Infallible;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::check(s)?;
-
         Ok(Self(s.as_bytes().try_into().unwrap()))
     }
 }
 
-impl TryFrom<String> for AttachmentId {
-    type Error = IdStringDeserializeError;
-
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        Self::check(&s)?;
-
-        Ok(Self(s.as_bytes().try_into().unwrap()))
+impl From<String> for AttachmentId {
+    fn from(s: String) -> Self {
+        Self(s.as_bytes().try_into().unwrap())
     }
 }
 
