@@ -1,5 +1,6 @@
 [package]
 name = "robespierre-models"
+description = "robespierre - model declarations"
 version = "0.1.0"
 edition = "2018"
 repository = "https://github.com/dblanovschi/robespierre"
