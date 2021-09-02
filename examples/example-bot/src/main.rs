@@ -43,8 +43,8 @@ impl EventHandler for Handler {
         let channel = message.channel(&ctx).await.unwrap();
         let server = message.server(&ctx).await.unwrap();
 
-        message.channel.start_typing(&ctx);
-        tokio::time::sleep(std::time::Duration::new(2, 500_000_000)).await;
+        let _session = message.channel.start_typing(&ctx);
+        tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
         let att_id = ctx
             .http
@@ -72,7 +72,5 @@ impl EventHandler for Handler {
                 .attachment(att_id)
             })
             .await;
-
-        message.channel.stop_typing(&ctx);
     }
 }

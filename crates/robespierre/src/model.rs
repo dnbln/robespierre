@@ -1,4 +1,5 @@
 use robespierre_cache::CommitToCache;
+use robespierre_events::typing::TypingSession;
 use robespierre_models::{
     channel::{Channel, Message, ReplyData},
     id::{AttachmentId, ChannelId, ServerId, UserId},
@@ -127,9 +128,7 @@ pub trait ChannelIdExt {
     where
         F: for<'a> FnOnce(&'a mut CreateMessage) -> &'a CreateMessage + Send;
 
-    /// timeout in ~3 seconds, call this function again if typing for a longer period of time
-    fn start_typing(&self, ctx: &Context);
-    fn stop_typing(&self, ctx: &Context);
+    fn start_typing(&self, ctx: &Context) -> TypingSession;
 }
 
 #[async_trait::async_trait]
@@ -176,12 +175,8 @@ impl ChannelIdExt for ChannelId {
             .await?)
     }
 
-    fn start_typing(&self, ctx: &Context) {
+    fn start_typing(&self, ctx: &Context) -> TypingSession {
         ctx.start_typing(*self)
-    }
-
-    fn stop_typing(&self, ctx: &Context) {
-        ctx.stop_typing(*self)
     }
 }
 

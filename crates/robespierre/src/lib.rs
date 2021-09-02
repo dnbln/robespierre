@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use robespierre_cache::{Cache, CacheConfig, CommitToCache, HasCache};
-use robespierre_events::{ConnectionMessage, ConnectionMessanger, EventsError, RawEventHandler, ReadyEvent, ServerToClientEvent};
+use robespierre_events::{ConnectionMessage, ConnectionMessanger, EventsError, RawEventHandler, ReadyEvent, ServerToClientEvent, typing::TypingSession};
 use robespierre_http::{Http, HttpAuthentication, HttpError};
 use robespierre_models::{
     channel::{Channel, ChannelField, Message, PartialChannel, PartialMessage},
@@ -506,20 +506,14 @@ impl Context {
         }
     }
 
-    pub(crate) fn start_typing(&self, channel: ChannelId) {
+    pub(crate) fn start_typing(&self, channel: ChannelId) -> TypingSession {
         let messanger = self.messanger.as_ref().expect(
-            "need sender; did you forget to call .set_sender(...) on robespierre::Context?",
+            "need messager; did you forget to call .set_messager(...) on robespierre::Context?",
         );
 
         messanger.send(ConnectionMessage::StartTyping { channel });
-    }
 
-    pub(crate) fn stop_typing(&self, channel: ChannelId) {
-        let messanger = self.messanger.as_ref().expect(
-            "need sender; did you forget to call .set_sender(...) on robespierre::Context?",
-        );
-
-        messanger.send(ConnectionMessage::StopTyping { channel });
+        TypingSession::new(channel, messanger.clone())
     }
 }
 

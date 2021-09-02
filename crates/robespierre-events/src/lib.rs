@@ -20,6 +20,7 @@ use tokio_rustls::client::TlsStream;
 
 use serde::{Deserialize, Serialize};
 
+pub mod typing;
 
 /// Errors that can occur while working with ws messages / events.
 #[derive(Debug, thiserror::Error)]
@@ -38,7 +39,6 @@ pub enum EventsError {
 }
 
 pub type Result<T = ()> = StdResult<T, EventsError>;
-
 
 /// Any message the client can send to the server.
 #[derive(Serialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
@@ -208,7 +208,6 @@ pub trait RawEventHandler: Send + Sync + Clone + 'static {
     async fn handle(self, ctx: Self::Context, event: ServerToClientEvent);
 }
 
-
 /// A message to a [`Connection`]
 #[derive(Debug, Copy, Clone)]
 pub enum ConnectionMessage {
@@ -278,16 +277,20 @@ impl Connection {
             FromServer(Result<ServerToClientEvent>),
             ConnectionMessage(Option<ConnectionMessage>),
             Tick,
+            TypingManagerTick,
         }
+
+        let mut typing_session_manager = typing::TypingSessionManager::new();
 
         loop {
             // Event::FromServer = we got an event from the server, which we should pass to the handler
             // Event::ConnectionMessage = we got a message from a handler, can be something like send "BeginTyping", "EndTyping" to the ws, try to close the socket
             // Event::Tick = we didn't get any event, but we have to ping the server or it will close the connection
             let event = futures::select! {
-                event = self.0.get_event().fuse() => Event::FromServer(event),
+                event = self.get_event().fuse() => Event::FromServer(event),
                 connection_message = rx.recv().fuse() => Event::ConnectionMessage(connection_message),
                 _ = int.tick().fuse() => Event::Tick,
+                _ = typing_session_manager.tick().fuse() => Event::TypingManagerTick,
             };
 
             match event {
@@ -302,11 +305,17 @@ impl Connection {
                 }
                 Event::ConnectionMessage(Some(message)) => match message {
                     ConnectionMessage::StartTyping { channel } => {
-                        self.start_typing(channel).await?
+                        typing_session_manager.start_typing(channel);
+                        self.start_typing(channel).await?;
                     }
-                    ConnectionMessage::StopTyping { channel } => self.stop_typing(channel).await?,
+                    ConnectionMessage::StopTyping { channel } => {
+                        if typing_session_manager.stop_typing(channel) {
+                            // was removed
+                            self.stop_typing(channel).await?;
+                        }
+                    }
                     ConnectionMessage::Close => {
-                        self.0.stream.close(None).await?;
+                        self.close().await?;
                         return Ok(()); // will drop self
                     }
                 },
@@ -319,11 +328,13 @@ impl Connection {
                     unreachable!()
                 }
                 Event::Tick => {
-                    let result = self.0.hb().await;
-                    if let Err(err) = result {
-                        tracing::error!("hb error: {}", err);
+                    self.hb().await?;
+                },
+                Event::TypingManagerTick => {
+                    for session in typing_session_manager.current_sessions() {
+                        self.start_typing(*session).await?;
                     }
-                }
+                },
             }
         }
     }
@@ -353,6 +364,13 @@ impl Connection {
         self.0
             .send_event(ClientToServerEvent::EndTyping { channel })
             .await
+    }
+
+    /// Closes the websocket.
+    pub async fn close(mut self) -> Result {
+        self.0.close().await?;
+
+        Ok(())
     }
 }
 
@@ -405,6 +423,13 @@ impl ConnectionInternal {
         self.stream
             .send(TungsteniteMessage::text(serde_json::to_string(&message)?))
             .await?;
+
+        Ok(())
+    }
+
+    async fn close(&mut self) -> Result {
+        self.stream.close(None).await?;
+        self.closed = true;
 
         Ok(())
     }
