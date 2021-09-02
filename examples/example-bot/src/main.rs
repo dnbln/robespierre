@@ -7,6 +7,7 @@ use robespierre_events::Connection;
 use robespierre_http::Http;
 use robespierre_models::autumn::AutumnTag;
 use robespierre_models::channel::{Message, ReplyData};
+use robespierre_models::id::{ChannelId, ServerId, UserId};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -72,5 +73,20 @@ impl EventHandler for Handler {
                 .attachment(att_id)
             })
             .await;
+    }
+
+    async fn on_server_member_join(&self, ctx: Context, server: ServerId, user: UserId) {
+        if server != "01FEFZGF62HTX6MVYBTZ9F1K1S" {
+            return;
+        }
+
+        let channel = "01FEFZXHDQMD5ESK0XXW93JM5R".parse::<ChannelId>().unwrap();
+
+        channel
+            .send_message(&ctx, |msg| {
+                msg.content(format!("Welcome {}!", user.mention()))
+            })
+            .await
+            .unwrap();
     }
 }

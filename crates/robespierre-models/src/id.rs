@@ -1,8 +1,4 @@
-use std::{
-    convert::{Infallible, TryFrom, TryInto},
-    fmt::Display,
-    str::FromStr,
-};
+use std::{cmp::Ordering, convert::{Infallible, TryFrom, TryInto}, fmt::Display, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 
@@ -89,6 +85,54 @@ impl Display for IdString {
     }
 }
 
+impl PartialEq<String> for IdString {
+    fn eq(&self, other: &String) -> bool {
+        self.as_ref().eq(other)
+    }
+
+    fn ne(&self, other: &String) -> bool {
+        self.as_ref().ne(other)
+    }
+}
+
+impl PartialEq<str> for IdString {
+    fn eq(&self, other: &str) -> bool {
+        self.as_ref().eq(other)
+    }
+
+    fn ne(&self, other: &str) -> bool {
+        self.as_ref().ne(other)
+    }
+}
+
+impl<'a> PartialEq<&'a str> for IdString {
+    fn eq(&self, other: &&'a str) -> bool {
+        self.as_ref().eq(*other)
+    }
+
+    fn ne(&self, other: &&'a str) -> bool {
+        self.as_ref().ne(*other)
+    }
+}
+
+impl PartialOrd<String> for IdString {
+    fn partial_cmp(&self, other: &String) -> Option<Ordering> {
+        Some(self.as_ref().cmp(other))
+    }
+}
+
+impl PartialOrd<str> for IdString {
+    fn partial_cmp(&self, other: &str) -> Option<Ordering> {
+        Some(self.as_ref().cmp(other))
+    }
+}
+
+impl<'a> PartialOrd<&'a str> for IdString {
+    fn partial_cmp(&self, other: &&'a str) -> Option<Ordering> {
+        Some(self.as_ref().cmp(*other))
+    }
+}
+
 macro_rules! id_impl {
     ($name:ident) => {
         impl From<IdString> for $name {
@@ -134,6 +178,54 @@ macro_rules! id_impl {
         impl Display for $name {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 self.0.fmt(f)
+            }
+        }
+
+        impl PartialEq<String> for $name {
+            fn eq(&self, other: &String) -> bool {
+                self.as_ref().eq(other)
+            }
+        
+            fn ne(&self, other: &String) -> bool {
+                self.as_ref().ne(other)
+            }
+        }
+        
+        impl PartialEq<str> for $name {
+            fn eq(&self, other: &str) -> bool {
+                self.as_ref().eq(other)
+            }
+        
+            fn ne(&self, other: &str) -> bool {
+                self.as_ref().ne(other)
+            }
+        }
+        
+        impl<'a> PartialEq<&'a str> for $name {
+            fn eq(&self, other: &&'a str) -> bool {
+                self.as_ref().eq(*other)
+            }
+        
+            fn ne(&self, other: &&'a str) -> bool {
+                self.as_ref().ne(*other)
+            }
+        }
+        
+        impl PartialOrd<String> for $name {
+            fn partial_cmp(&self, other: &String) -> Option<Ordering> {
+                Some(self.as_ref().cmp(other))
+            }
+        }
+        
+        impl PartialOrd<str> for $name {
+            fn partial_cmp(&self, other: &str) -> Option<Ordering> {
+                Some(self.as_ref().cmp(other))
+            }
+        }
+        
+        impl<'a> PartialOrd<&'a str> for $name {
+            fn partial_cmp(&self, other: &&'a str) -> Option<Ordering> {
+                Some(self.as_ref().cmp(*other))
             }
         }
     };
