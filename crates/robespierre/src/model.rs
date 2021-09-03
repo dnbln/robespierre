@@ -1,4 +1,6 @@
+#[cfg(feature = "cache")]
 use robespierre_cache::CommitToCache;
+#[cfg(feature = "events")]
 use robespierre_events::typing::TypingSession;
 use robespierre_models::{
     channel::{Channel, Message, ReplyData},
@@ -7,21 +9,37 @@ use robespierre_models::{
     user::User,
 };
 
-use crate::{Context, Result};
+use crate::{CacheHttp, Context, HasHttp, Result};
 
 pub mod mention;
 
 pub trait IntoString: Into<String> + Send + Sync + 'static {}
 impl<T> IntoString for T where T: Into<String> + Send + Sync + 'static {}
 
+pub trait AsRefContext: AsRef<Context> + Send + Sync + 'static {}
+impl<T> AsRefContext for T where T: AsRef<Context> + Send + Sync + 'static {}
+
+// commit_to_cache implementation when there is no cache
+#[cfg(not(feature = "cache"))]
+#[async_trait::async_trait]
+trait CommitToCache {
+    async fn commit_to_cache<T>(self, cache: T) -> Self where Self: Sized {
+        self
+    }
+}
+
+#[cfg(not(feature = "cache"))]
+#[async_trait::async_trait]
+impl<T> CommitToCache for T {}
+
 #[async_trait::async_trait]
 pub trait MessageExt {
-    async fn reply(&self, ctx: &Context, content: impl IntoString) -> Result<Message>;
-    async fn reply_ping(&self, ctx: &Context, content: impl IntoString) -> Result<Message>;
-    async fn author(&self, ctx: &Context) -> Result<User>;
-    async fn channel(&self, ctx: &Context) -> Result<Channel>;
-    async fn server_id(&self, ctx: &Context) -> Result<Option<ServerId>>;
-    async fn server(&self, ctx: &Context) -> Result<Option<Server>>;
+    async fn reply(&self, ctx: &impl HasHttp, content: impl IntoString) -> Result<Message>;
+    async fn reply_ping(&self, ctx: &impl HasHttp, content: impl IntoString) -> Result<Message>;
+    async fn author(&self, ctx: &impl CacheHttp) -> Result<User>;
+    async fn channel(&self, ctx: &impl CacheHttp) -> Result<Channel>;
+    async fn server_id(&self, ctx: &impl CacheHttp) -> Result<Option<ServerId>>;
+    async fn server(&self, ctx: &impl CacheHttp) -> Result<Option<Server>>;
 }
 
 #[derive(Debug, Clone, Default)]
@@ -60,7 +78,7 @@ impl CreateMessage {
 
 #[async_trait::async_trait]
 impl MessageExt for Message {
-    async fn reply(&self, ctx: &Context, content: impl IntoString) -> Result<Message> {
+    async fn reply(&self, ctx: &impl HasHttp, content: impl IntoString) -> Result<Message> {
         self.channel
             .send_message(ctx, |m| {
                 m.content(content).reply(ReplyData {
@@ -71,7 +89,7 @@ impl MessageExt for Message {
             .await
     }
 
-    async fn reply_ping(&self, ctx: &Context, content: impl IntoString) -> Result<Message> {
+    async fn reply_ping(&self, ctx: &impl HasHttp, content: impl IntoString) -> Result<Message> {
         self.channel
             .send_message(ctx, |m| {
                 m.content(content).reply(ReplyData {
@@ -82,19 +100,19 @@ impl MessageExt for Message {
             .await
     }
 
-    async fn author(&self, ctx: &Context) -> Result<User> {
+    async fn author(&self, ctx: &impl CacheHttp) -> Result<User> {
         self.author.user(ctx).await
     }
 
-    async fn channel(&self, ctx: &Context) -> Result<Channel> {
+    async fn channel(&self, ctx: &impl CacheHttp) -> Result<Channel> {
         self.channel.channel(ctx).await
     }
 
-    async fn server_id(&self, ctx: &Context) -> Result<Option<ServerId>> {
+    async fn server_id(&self, ctx: &impl CacheHttp) -> Result<Option<ServerId>> {
         self.channel.server_id(ctx).await
     }
 
-    async fn server(&self, ctx: &Context) -> Result<Option<Server>> {
+    async fn server(&self, ctx: &impl CacheHttp) -> Result<Option<Server>> {
         let ch = self.channel(ctx).await?;
 
         Ok(ch.server(ctx).await?)
@@ -103,12 +121,12 @@ impl MessageExt for Message {
 
 #[async_trait::async_trait]
 pub trait ChannelExt {
-    async fn server(&self, ctx: &Context) -> Result<Option<Server>>;
+    async fn server(&self, ctx: &impl CacheHttp) -> Result<Option<Server>>;
 }
 
 #[async_trait::async_trait]
 impl ChannelExt for Channel {
-    async fn server(&self, ctx: &Context) -> Result<Option<Server>> {
+    async fn server(&self, ctx: &impl CacheHttp) -> Result<Option<Server>> {
         let server_id = match self.server_id() {
             Some(id) => id,
             None => return Ok(None),
@@ -120,51 +138,53 @@ impl ChannelExt for Channel {
 
 #[async_trait::async_trait]
 pub trait ChannelIdExt {
-    async fn channel(&self, ctx: &Context) -> Result<Channel>;
-    async fn server_id(&self, ctx: &Context) -> Result<Option<ServerId>>;
-    async fn server(&self, ctx: &Context) -> Result<Option<Server>>;
+    async fn channel(&self, ctx: &impl CacheHttp) -> Result<Channel>;
+    async fn server_id(&self, ctx: &impl CacheHttp) -> Result<Option<ServerId>>;
+    async fn server(&self, ctx: &impl CacheHttp) -> Result<Option<Server>>;
 
-    async fn send_message<F>(&self, ctx: &Context, message: F) -> Result<Message>
+    async fn send_message<F>(&self, ctx: &impl HasHttp, message: F) -> Result<Message>
     where
         F: for<'a> FnOnce(&'a mut CreateMessage) -> &'a CreateMessage + Send;
 
-    fn start_typing(&self, ctx: &Context) -> TypingSession;
+    #[cfg(feature = "events")]
+    fn start_typing(&self, ctx: &impl AsRefContext) -> TypingSession;
 }
 
 #[async_trait::async_trait]
 impl ChannelIdExt for ChannelId {
-    async fn channel(&self, ctx: &Context) -> Result<Channel> {
-        if let Some(ref cache) = ctx.cache {
+    async fn channel(&self, ctx: &impl CacheHttp) -> Result<Channel> {
+        #[cfg(feature = "cache")]
+        if let Some(cache) = ctx.cache() {
             if let Some(channel) = cache.get_channel(*self).await {
                 return Ok(channel);
             }
         }
 
         Ok(ctx
-            .http
+            .http()
             .fetch_channel(*self)
             .await?
             .commit_to_cache(ctx)
             .await)
     }
 
-    async fn server_id(&self, ctx: &Context) -> Result<Option<ServerId>> {
+    async fn server_id(&self, ctx: &impl CacheHttp) -> Result<Option<ServerId>> {
         Ok(self.channel(ctx).await?.server_id())
     }
 
-    async fn server(&self, ctx: &Context) -> Result<Option<Server>> {
+    async fn server(&self, ctx: &impl CacheHttp) -> Result<Option<Server>> {
         self.channel(ctx).await?.server(ctx).await
     }
 
-    async fn send_message<F>(&self, ctx: &Context, message: F) -> Result<Message>
+    async fn send_message<F>(&self, http: &impl HasHttp, message: F) -> Result<Message>
     where
         F: for<'a> FnOnce(&'a mut CreateMessage) -> &'a CreateMessage + Send,
     {
         let mut m = CreateMessage::default();
         message(&mut m);
 
-        Ok(ctx
-            .http
+        Ok(http
+            .get_http()
             .send_message(
                 *self,
                 m.content,
@@ -175,27 +195,29 @@ impl ChannelIdExt for ChannelId {
             .await?)
     }
 
-    fn start_typing(&self, ctx: &Context) -> TypingSession {
-        ctx.start_typing(*self)
+    #[cfg(feature = "events")]
+    fn start_typing(&self, ctx: &impl AsRefContext) -> TypingSession {
+        ctx.as_ref().start_typing(*self)
     }
 }
 
 #[async_trait::async_trait]
 pub trait ServerIdExt {
-    async fn server(&self, ctx: &Context) -> Result<Server>;
+    async fn server(&self, ctx: &impl CacheHttp) -> Result<Server>;
 }
 
 #[async_trait::async_trait]
 impl ServerIdExt for ServerId {
-    async fn server(&self, ctx: &Context) -> Result<Server> {
-        if let Some(ref cache) = ctx.cache {
+    async fn server(&self, ctx: &impl CacheHttp) -> Result<Server> {
+        #[cfg(feature = "cache")]
+        if let Some(cache) = ctx.cache() {
             if let Some(server) = cache.get_server(*self).await {
                 return Ok(server);
             }
         }
 
         Ok(ctx
-            .http
+            .http()
             .fetch_server(*self)
             .await?
             .commit_to_cache(ctx)
@@ -205,18 +227,24 @@ impl ServerIdExt for ServerId {
 
 #[async_trait::async_trait]
 pub trait UserIdExt {
-    async fn user(&self, ctx: &Context) -> Result<User>;
+    async fn user(&self, ctx: &impl CacheHttp) -> Result<User>;
 }
 
 #[async_trait::async_trait]
 impl UserIdExt for UserId {
-    async fn user(&self, ctx: &Context) -> Result<User> {
-        if let Some(ref cache) = ctx.cache {
+    async fn user(&self, ctx: &impl CacheHttp) -> Result<User> {
+        #[cfg(feature = "cache")]
+        if let Some(cache) = ctx.cache() {
             if let Some(user) = cache.get_user(*self).await {
                 return Ok(user);
             }
         }
 
-        Ok(ctx.http.fetch_user(*self).await?.commit_to_cache(ctx).await)
+        Ok(ctx
+            .http()
+            .fetch_user(*self)
+            .await?
+            .commit_to_cache(ctx)
+            .await)
     }
 }

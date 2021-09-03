@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
+#[cfg(feature = "cache")]
 use robespierre_cache::{Cache, CacheConfig, CommitToCache, HasCache};
+#[cfg(feature = "events")]
 use robespierre_events::{ConnectionMessage, ConnectionMessanger, EventsError, RawEventHandler, ReadyEvent, ServerToClientEvent, typing::TypingSession};
 use robespierre_http::{Http, HttpAuthentication, HttpError};
 use robespierre_models::{
@@ -13,11 +15,13 @@ use robespierre_models::{
 pub use async_trait::async_trait;
 
 pub mod model;
+pub mod framework;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("http error")]
     Http(#[from] HttpError),
+    #[cfg(feature = "events")]
     #[error("events error")]
     Events(#[from] EventsError),
 }
@@ -26,6 +30,7 @@ pub type Result<T = ()> = std::result::Result<T, Error>;
 
 
 /// A high-level event handler. Defines handlers for all the different types of events.
+#[cfg(feature = "events")]
 #[async_trait::async_trait]
 #[allow(unused_variables)]
 pub trait EventHandler: Send + Sync {
@@ -126,9 +131,11 @@ pub trait EventHandler: Send + Sync {
 
 /// Wraps an event handler, updating the cache and then forwarding the events
 /// to the wrapped [`EventHandler`]
+#[cfg(all(feature = "events", feature = "cache"))]
 #[derive(Clone)]
 pub struct CacheWrap<T: EventHandler + Clone + 'static>(T);
 
+#[cfg(all(feature = "events", feature = "cache"))]
 impl<T> CacheWrap<T>
 where
     T: EventHandler + Clone + 'static,
@@ -139,6 +146,7 @@ where
     }
 }
 
+#[cfg(all(feature = "events", feature = "cache"))]
 #[async_trait::async_trait]
 impl<T> EventHandler for CacheWrap<T>
 where
@@ -331,15 +339,18 @@ where
 
 /// An object that can be passed to [`robespierre_events::Connection::run`], and
 /// distinguishes between the events and calls the relevant handler.
+#[cfg(feature = "events")]
 #[derive(Clone)]
 pub struct EventHandlerWrap<T: EventHandler + Clone + 'static>(T);
 
+#[cfg(feature = "events")]
 impl<T: EventHandler + Clone + 'static> EventHandlerWrap<T> {
     pub fn new(handler: T) -> Self {
         Self(handler)
     }
 }
 
+#[cfg(feature = "events")]
 #[async_trait::async_trait]
 impl<T> RawEventHandler for EventHandlerWrap<T>
 where
@@ -427,8 +438,16 @@ where
 #[derive(Clone)]
 pub struct Context {
     pub http: Arc<Http>,
+    #[cfg(feature = "cache")]
     pub cache: Option<Arc<Cache>>,
+    #[cfg(feature = "events")]
     messanger: Option<ConnectionMessanger>,
+}
+
+impl AsRef<Context> for Context {
+    fn as_ref(&self) -> &Context {
+        self
+    }
 }
 
 pub enum Authentication {
@@ -456,6 +475,7 @@ impl Authentication {
     }
 }
 
+#[cfg(feature = "events")]
 impl<'a> From<&'a Authentication> for robespierre_events::Authentication<'a> {
     fn from(auth: &'a Authentication) -> Self {
         match auth {
@@ -494,11 +514,14 @@ impl Context {
     pub fn new(http: Http) -> Self {
         Self {
             http: Arc::new(http),
+            #[cfg(feature = "cache")]
             cache: None,
+            #[cfg(feature = "events")]
             messanger: None,
         }
     }
 
+    #[cfg(feature = "cache")]
     pub fn with_cache(self, cache_config: CacheConfig) -> Self {
         Self {
             cache: Some(Cache::new(cache_config)),
@@ -506,6 +529,7 @@ impl Context {
         }
     }
 
+    #[cfg(feature = "events")]
     pub(crate) fn start_typing(&self, channel: ChannelId) -> TypingSession {
         let messanger = self.messanger.as_ref().expect(
             "need messager; did you forget to call .set_messager(...) on robespierre::Context?",
@@ -517,6 +541,7 @@ impl Context {
     }
 }
 
+#[cfg(feature = "events")]
 impl robespierre_events::Context for Context {
     fn set_messanger(self, messanger: ConnectionMessanger) -> Self {
         Self {
@@ -526,8 +551,54 @@ impl robespierre_events::Context for Context {
     }
 }
 
+#[cfg(feature = "cache")]
 impl HasCache for Context {
     fn get_cache(&self) -> Option<&Cache> {
         self.cache.as_ref().map(|it| &**it)
+    }
+}
+
+pub trait HasHttp: Send + Sync {
+    fn get_http(&self) -> &Http;
+}
+
+impl HasHttp for Context {
+    fn get_http(&self) -> &Http {
+        &*self.http
+    }
+}
+
+impl HasHttp for Http {
+    fn get_http(&self) -> &Http {
+        self
+    }
+}
+
+#[cfg(feature = "cache")]
+pub trait CacheHttp: HasCache {
+    fn http(&self) -> &Http;
+    fn cache(&self) -> Option<&Cache>;
+}
+
+#[cfg(feature = "cache")]
+impl<T: HasCache + HasHttp> CacheHttp for T {
+    fn http(&self) -> &Http {
+        self.get_http()
+    }
+
+    fn cache(&self) -> Option<&Cache> {
+        self.get_cache()
+    }
+}
+
+#[cfg(not(feature = "cache"))]
+pub trait CacheHttp {
+    fn http(&self) -> &Http;
+}
+
+#[cfg(not(feature = "cache"))]
+impl<T: HasHttp> CacheHttp for T {
+    fn http(&self) -> &Http {
+        self.get_http()
     }
 }
