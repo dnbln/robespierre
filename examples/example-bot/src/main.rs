@@ -1,7 +1,7 @@
 use std::future::Future;
 use std::pin::Pin;
 
-use robespierre::framework::standard::{AfterHandlerCodeFn, Command, CommandCodeFn, CommandResult, FwContext, NormalMessageHandlerCodeFn, StandardFramework, command};
+use robespierre::framework::standard::{AfterHandlerCodeFn, Command, CommandCodeFn, CommandResult, FwContext, NormalMessageHandlerCodeFn, StandardFramework, macros::command};
 use robespierre::model::mention::Mentionable;
 use robespierre::model::ChannelIdExt;
 use robespierre::{async_trait, model::MessageExt, Context, EventHandler, EventHandlerWrap};

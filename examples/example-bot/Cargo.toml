@@ -11,7 +11,7 @@ robespierre-models = { path = "../../crates/robespierre-models" }
 robespierre-events = { path = "../../crates/robespierre-events" }
 robespierre-cache = { path = "../../crates/robespierre-cache" }
 robespierre-http = { path = "../../crates/robespierre-http" }
-robespierre = { path = "../../crates/robespierre", features = ["cache", "events", "framework"] }
+robespierre = { path = "../../crates/robespierre", features = ["cache", "events", "framework", "framework-macros"] }
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = "0.2.20"
