@@ -1,3 +1,5 @@
+pub extern crate async_std;
+
 use std::sync::Arc;
 
 #[cfg(feature = "framework")]
@@ -457,7 +459,9 @@ impl<
         self.handler.on_server_delete(ctx, server).await
     }
 
-    async fn on_server_member_join(&self, ctx: Context, server: ServerId, user: UserId) {}
+    async fn on_server_member_join(&self, ctx: Context, server: ServerId, user: UserId) {
+        self.handler.on_server_member_join(ctx, server, user).await
+    }
 
     async fn on_server_member_update(
         &self,

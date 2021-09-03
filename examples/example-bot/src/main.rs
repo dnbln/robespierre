@@ -1,10 +1,7 @@
 use std::future::Future;
 use std::pin::Pin;
 
-use robespierre::framework::standard::{
-    AfterHandlerCodeFn, Command, CommandCodeFn, CommandResult, FwContext,
-    NormalMessageHandlerCodeFn, StandardFramework,
-};
+use robespierre::framework::standard::{AfterHandlerCodeFn, Command, CommandCodeFn, CommandResult, FwContext, NormalMessageHandlerCodeFn, StandardFramework, command};
 use robespierre::model::mention::Mentionable;
 use robespierre::model::ChannelIdExt;
 use robespierre::{async_trait, model::MessageExt, Context, EventHandler, EventHandlerWrap};
@@ -48,18 +45,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn ping_impl(ctx: &FwContext, message: &Message, args: &str) -> CommandResult {
+#[command]
+async fn ping(
+    ctx: &FwContext,
+    message: &Message,
+    _args: &str,
+) -> CommandResult {
     message.reply(ctx, "Who pinged me?!").await?;
 
     Ok(())
-}
-
-fn ping<'a>(
-    ctx: &'a FwContext,
-    message: &'a Message,
-    args: &'a str,
-) -> Pin<Box<dyn Future<Output = CommandResult> + Send + 'a>> {
-    Box::pin(ping_impl(ctx, message, args))
 }
 
 async fn normal_message_impl(ctx: &FwContext, message: &Message) {
@@ -109,7 +103,7 @@ fn normal_message<'a>(
     Box::pin(normal_message_impl(ctx, message))
 }
 
-async fn after_handler_impl<'a>(ctx: &'a FwContext, message: &'a Message, result: CommandResult) {
+async fn after_handler_impl<'a>(_ctx: &'a FwContext, _message: &'a Message, result: CommandResult) {
     match result {
         Ok(()) => {
             tracing::info!("Got ok!");

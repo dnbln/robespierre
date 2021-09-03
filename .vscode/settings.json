@@ -3,5 +3,6 @@
         "cache",
         "events",
         "framework",
+        "framework-macros",
     ]
 }

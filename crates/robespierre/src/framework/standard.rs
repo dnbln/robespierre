@@ -13,6 +13,9 @@ use crate::{Context, HasHttp};
 
 use super::Framework;
 
+#[cfg(feature = "framework-macros")]
+pub use robespierre_fw_macros::command;
+
 #[derive(Default)]
 pub struct StdFwConfig {
     prefix: Cow<'static, str>,
