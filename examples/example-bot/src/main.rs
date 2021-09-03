@@ -1,5 +1,7 @@
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use robespierre::framework::standard::{
     macros::command, AfterHandlerCodeFn, Command, CommandCodeFn, CommandResult, FwContext,
@@ -8,13 +10,18 @@ use robespierre::framework::standard::{
 use robespierre::model::mention::Mentionable;
 use robespierre::model::ChannelIdExt;
 use robespierre::{async_trait, model::MessageExt, Context, EventHandler, EventHandlerWrap};
-use robespierre::{Authentication, CacheHttp, CacheWrap, FrameworkWrap};
+use robespierre::{Authentication, CacheHttp, CacheWrap, FrameworkWrap, UserData};
 use robespierre_cache::CacheConfig;
 use robespierre_events::Connection;
 use robespierre_http::Http;
 use robespierre_models::autumn::AutumnTag;
 use robespierre_models::channel::{Message, ReplyData};
 use robespierre_models::id::{ChannelId, ServerId, UserId};
+
+struct CommandCounter;
+impl robespierre::typemap::Key for CommandCounter {
+    type Value = Arc<AtomicUsize>;
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -27,7 +34,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let http = Http::new(&auth).await?;
     let connection = Connection::connect(&auth).await?;
 
-    let ctx = Context::new(http).with_cache(CacheConfig::default());
+    let typemap = {
+        let mut typemap = robespierre::typemap::ShareMap::custom();
+        typemap.insert::<CommandCounter>(Arc::new(AtomicUsize::new(0)));
+
+        typemap
+    };
+
+    let ctx = Context::new(http, typemap).with_cache(CacheConfig::default());
 
     let fw = StandardFramework::default()
         .configure(|c| c.prefix("!"))
@@ -50,7 +64,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 #[command]
 async fn ping(ctx: &FwContext, message: &Message, _args: &str) -> CommandResult {
+    let d = ctx.data_lock_write().await;
+    let commands = d.get::<CommandCounter>().unwrap();
+    let num = commands.fetch_add(1, Ordering::Relaxed);
     message.reply(ctx, "Who pinged me?!").await?;
+    message.reply(ctx, format!("I got {} pings since I came online", num)).await?;
 
     Ok(())
 }

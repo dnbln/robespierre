@@ -1,15 +1,10 @@
-use std::{
-    borrow::{Borrow, Cow},
-    fmt,
-    future::Future,
-    pin::Pin,
-};
+use std::{borrow::{Borrow, Cow}, fmt, future::Future, pin::Pin};
 
 #[cfg(feature = "cache")]
 use robespierre_cache::{Cache, HasCache};
 use robespierre_models::channel::Message;
 
-use crate::{Context, HasHttp};
+use crate::{Context, HasHttp, UserData};
 
 use super::Framework;
 
@@ -317,6 +312,17 @@ impl AsRef<Context> for FwContext {
 impl From<Context> for FwContext {
     fn from(ctx: Context) -> Self {
         Self { ctx }
+    }
+}
+
+#[async_trait::async_trait]
+impl UserData for FwContext {
+    async fn data_lock_read(&self) -> tokio::sync::RwLockReadGuard<typemap::ShareMap> {
+        self.ctx.data_lock_read().await
+    }
+
+    async fn data_lock_write(&self) -> tokio::sync::RwLockWriteGuard<typemap::ShareMap> {
+        self.ctx.data_lock_write().await
     }
 }
 

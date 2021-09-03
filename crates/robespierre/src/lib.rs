@@ -1,4 +1,5 @@
 pub extern crate async_std;
+pub extern crate typemap;
 
 use std::sync::Arc;
 
@@ -20,7 +21,8 @@ use robespierre_models::{
 };
 
 pub use async_trait::async_trait;
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use typemap::ShareMap;
 
 #[cfg(feature = "framework")]
 pub mod framework;
@@ -619,21 +621,6 @@ where
     }
 }
 
-#[derive(Clone)]
-pub struct Context {
-    pub http: Arc<Http>,
-    #[cfg(feature = "cache")]
-    pub cache: Option<Arc<Cache>>,
-    #[cfg(feature = "events")]
-    messanger: Option<ConnectionMessanger>,
-}
-
-impl AsRef<Context> for Context {
-    fn as_ref(&self) -> &Context {
-        self
-    }
-}
-
 pub enum Authentication {
     Bot {
         token: String,
@@ -694,12 +681,46 @@ impl<'a> From<&'a Authentication> for HttpAuthentication<'a> {
     }
 }
 
+#[derive(Clone)]
+pub struct Context {
+    pub http: Arc<Http>,
+    #[cfg(feature = "cache")]
+    pub cache: Option<Arc<Cache>>,
+    pub data: Arc<RwLock<ShareMap>>,
+    #[cfg(feature = "events")]
+    messanger: Option<ConnectionMessanger>,
+}
+
+impl AsRef<Context> for Context {
+    fn as_ref(&self) -> &Context {
+        self
+    }
+}
+
+#[async_trait::async_trait]
+pub trait UserData {
+    async fn data_lock_read(&self) -> RwLockReadGuard<ShareMap>;
+    async fn data_lock_write(&self) -> RwLockWriteGuard<ShareMap>;
+}
+
+#[async_trait::async_trait]
+impl UserData for Context {
+    async fn data_lock_read(&self) -> RwLockReadGuard<ShareMap> {
+        self.data.read().await
+    }
+
+    async fn data_lock_write(&self) -> RwLockWriteGuard<ShareMap> {
+        self.data.write().await
+    }
+}
+
 impl Context {
-    pub fn new(http: Http) -> Self {
+    pub fn new(http: Http, typemap: impl Into<ShareMap>) -> Self {
         Self {
             http: Arc::new(http),
             #[cfg(feature = "cache")]
             cache: None,
+            data: Arc::new(RwLock::new(typemap.into())),
             #[cfg(feature = "events")]
             messanger: None,
         }
