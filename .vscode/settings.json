@@ -3,6 +3,5 @@
         "cache",
         "events",
         "framework",
-        "interpreter",
     ]
 }

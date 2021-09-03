@@ -61,6 +61,13 @@ impl StandardFramework {
         }
     }
 
+    pub fn after(self, handler: impl Into<AfterHandlerCode>) -> Self {
+        Self {
+            after: Some(handler.into()),
+            ..self
+        }
+    }
+
     pub fn group<F>(mut self, f: F) -> Self
     where
         F: for<'a> FnOnce(Group) -> Group,
@@ -298,7 +305,7 @@ impl From<Context> for FwContext {
     }
 }
 
-type AfterHandlerCodeFn = for<'a> fn(
+pub type AfterHandlerCodeFn = for<'a> fn(
     ctx: &'a FwContext,
     message: &'a Message,
     result: CommandResult,
@@ -400,15 +407,20 @@ impl UnknownCommandHandlerCode {
     }
 }
 
+pub type NormalMessageHandlerCodeFn = for<'a> fn(
+    ctx: &'a FwContext,
+    message: &'a Message,
+) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
 pub enum NormalMessageHandlerCode {
-    Binary(
-        for<'a> fn(
-            ctx: &'a FwContext,
-            message: &'a Message,
-        ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>>,
-    ),
+    Binary(NormalMessageHandlerCodeFn),
     #[cfg(feature = "interpreter")]
     Interpreted(String),
+}
+
+impl From<NormalMessageHandlerCodeFn> for NormalMessageHandlerCode {
+    fn from(code: NormalMessageHandlerCodeFn) -> Self {
+        Self::Binary(code)
+    }
 }
 
 impl NormalMessageHandlerCode {
