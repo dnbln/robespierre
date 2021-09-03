@@ -18,6 +18,15 @@ pub struct StdFwConfig {
     prefix: Cow<'static, str>,
 }
 
+impl StdFwConfig {
+    pub fn prefix(self, prefix: impl Into<Cow<'static, str>>) -> Self {
+        Self {
+            prefix: prefix.into(),
+            ..self
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct StandardFramework {
     root_group: RootGroup,
@@ -44,6 +53,7 @@ impl StandardFramework {
             ..self
         }
     }
+
     pub fn unknown_command(self, handler: impl Into<UnknownCommandHandlerCode>) -> Self {
         Self {
             unknown_command: Some(handler.into()),
@@ -76,7 +86,7 @@ impl StandardFramework {
 impl Framework for StandardFramework {
     type Context = FwContext;
 
-    async fn handle(&self, ctx: Self::Context, message: Message) {
+    async fn handle(&self, ctx: Self::Context, message: &Message) {
         let prefix: &str = self.config.prefix.borrow();
         if let Some(command) = message.content.strip_prefix(prefix) {
             let command = self.root_group.find_command(command);
@@ -165,7 +175,7 @@ impl Group {
         self
     }
 
-    pub fn default_command<F>(mut self, f: F) -> Self
+    pub fn default_command<F>(self, f: F) -> Self
     where
         F: FnOnce() -> Command,
     {
@@ -282,6 +292,12 @@ impl AsRef<Context> for FwContext {
     }
 }
 
+impl From<Context> for FwContext {
+    fn from(ctx: Context) -> Self {
+        Self { ctx }
+    }
+}
+
 type AfterHandlerCodeFn = for<'a> fn(
     ctx: &'a FwContext,
     message: &'a Message,
@@ -345,6 +361,7 @@ impl fmt::Debug for CommandCode {
                 .debug_tuple("Binary")
                 .field(&format_args!("{:p}", code as *const _))
                 .finish(),
+            #[cfg(feature = "interpreter")]
             Self::Interpreted(code) => f.debug_tuple("Interpreted").field(code).finish(),
         }
     }

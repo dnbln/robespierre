@@ -1,11 +1,18 @@
+use crate::model::MessageExt;
+
 use super::*;
+
+async fn command(fw_ctx: &FwContext, message: &Message, args: &str) -> CommandResult {
+    message.reply(fw_ctx, args.to_string()).await?;
+    Ok(())
+}
 
 fn cmd<'a>(
     fw_ctx: &'a FwContext,
     message: &'a Message,
     args: &'a str,
 ) -> Pin<Box<dyn Future<Output = CommandResult> + Send + 'a>> {
-    Box::pin(async move { Ok(()) })
+    Box::pin(command(fw_ctx, message, args))
 }
 
 fn find_command<'a, 'b>(
@@ -33,10 +40,7 @@ fn assert_cmd_is(
 #[test]
 fn test_find_command() {
     let framework = StandardFramework::default()
-        .configure(|mut c| {
-            c.prefix = "!".into();
-            c
-        })
+        .configure(|c| c.prefix("!"))
         .group(|g| {
             g.name("Hello")
                 .command(|| Command::new("aaa", cmd as CommandCodeFn))

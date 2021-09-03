@@ -1,7 +1,11 @@
+use std::future::Future;
+use std::pin::Pin;
+
+use robespierre::framework::standard::{Command, CommandCodeFn, CommandResult, FwContext, StandardFramework};
 use robespierre::model::mention::Mentionable;
 use robespierre::model::ChannelIdExt;
 use robespierre::{async_trait, model::MessageExt, Context, EventHandler, EventHandlerWrap};
-use robespierre::{Authentication, CacheWrap};
+use robespierre::{Authentication, CacheWrap, FrameworkWrap};
 use robespierre_cache::CacheConfig;
 use robespierre_events::Connection;
 use robespierre_http::Http;
@@ -22,11 +26,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let ctx = Context::new(http).with_cache(CacheConfig::default());
 
+    let fw = StandardFramework::default()
+        .configure(|c| c.prefix("!"))
+        .group(|g| {
+            g.name("General")
+                .command(|| Command::new("ping", ping as CommandCodeFn))
+        });
+
     connection
-        .run(ctx, EventHandlerWrap::new(CacheWrap::new(Handler)))
+        .run(
+            ctx,
+            EventHandlerWrap::new(CacheWrap::new(FrameworkWrap::new(fw, Handler))),
+        )
         .await?;
 
     Ok(())
+}
+
+async fn ping_impl(ctx: &FwContext, message: &Message, args: &str) -> CommandResult {
+    message.reply(ctx, "Who pinged me?!").await?;
+
+    Ok(())
+}
+
+fn ping<'a>(
+    ctx: &'a FwContext,
+    message: &'a Message,
+    args: &'a str,
+) -> Pin<Box<dyn Future<Output = CommandResult> + Send + 'a>> {
+    Box::pin(ping_impl(ctx, message, args))
 }
 
 #[derive(Copy, Clone)]

@@ -1,9 +1,14 @@
 use std::sync::Arc;
 
+#[cfg(feature = "framework")]
+use framework::Framework;
 #[cfg(feature = "cache")]
 use robespierre_cache::{Cache, CacheConfig, CommitToCache, HasCache};
 #[cfg(feature = "events")]
-use robespierre_events::{ConnectionMessage, ConnectionMessanger, EventsError, RawEventHandler, ReadyEvent, ServerToClientEvent, typing::TypingSession};
+use robespierre_events::{
+    typing::TypingSession, ConnectionMessage, ConnectionMessanger, EventsError, RawEventHandler,
+    ReadyEvent, ServerToClientEvent,
+};
 use robespierre_http::{Http, HttpAuthentication, HttpError};
 use robespierre_models::{
     channel::{Channel, ChannelField, Message, PartialChannel, PartialMessage},
@@ -13,9 +18,11 @@ use robespierre_models::{
 };
 
 pub use async_trait::async_trait;
+use tokio::sync::RwLock;
 
-pub mod model;
+#[cfg(feature = "framework")]
 pub mod framework;
+pub mod model;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -27,7 +34,6 @@ pub enum Error {
 }
 
 pub type Result<T = ()> = std::result::Result<T, Error>;
-
 
 /// A high-level event handler. Defines handlers for all the different types of events.
 #[cfg(feature = "events")]
@@ -332,6 +338,180 @@ where
         status: RelationshipStatus,
     ) {
         self.0
+            .on_user_relationship_update(ctx, self_id, other_id, status)
+            .await
+    }
+}
+
+#[cfg(all(feature = "events", feature = "framework"))]
+#[derive(Clone)]
+pub struct FrameworkWrap<
+    FrameworkContext: From<Context> + Send + Sync + 'static,
+    T: EventHandler + Clone + 'static,
+> {
+    fw: Arc<RwLock<Box<dyn Framework<Context = FrameworkContext> + 'static>>>,
+    handler: T,
+}
+
+#[cfg(all(feature = "events", feature = "framework"))]
+impl<
+        FrameworkContext: From<Context> + Send + Sync + 'static,
+        T: EventHandler + Clone + 'static,
+    > FrameworkWrap<FrameworkContext, T>
+{
+    pub fn new<Fw: Framework<Context = FrameworkContext> + 'static>(fw: Fw, handler: T) -> Self {
+        Self {
+            fw: Arc::new(RwLock::new(Box::new(fw))),
+            handler,
+        }
+    }
+}
+
+#[cfg(all(feature = "events", feature = "framework"))]
+#[async_trait::async_trait]
+impl<
+        FrameworkContext: From<Context> + Send + Sync + 'static,
+        T: EventHandler + Clone + 'static,
+    > EventHandler for FrameworkWrap<FrameworkContext, T>
+{
+    async fn on_ready(&self, ctx: Context, ready: ReadyEvent) {
+        self.handler.on_ready(ctx, ready).await
+    }
+
+    async fn on_message(&self, ctx: Context, message: Message) {
+        self.fw
+            .read()
+            .await
+            .handle(FrameworkContext::from(ctx.clone()), &message)
+            .await;
+        self.handler.on_message(ctx, message).await
+    }
+
+    async fn on_message_update(
+        &self,
+        ctx: Context,
+        channel: ChannelId,
+        message: MessageId,
+        modifications: PartialMessage,
+    ) {
+        self.handler
+            .on_message_update(ctx, channel, message, modifications)
+            .await
+    }
+
+    async fn on_message_delete(&self, ctx: Context, channel_id: ChannelId, message_id: MessageId) {
+        self.handler
+            .on_message_delete(ctx, channel_id, message_id)
+            .await
+    }
+
+    async fn on_channel_create(&self, ctx: Context, channel: Channel) {
+        self.handler.on_channel_create(ctx, channel).await
+    }
+
+    async fn on_channel_update(
+        &self,
+        ctx: Context,
+        channel_id: ChannelId,
+        modifications: PartialChannel,
+        remove: Option<ChannelField>,
+    ) {
+        self.handler
+            .on_channel_update(ctx, channel_id, modifications, remove)
+            .await
+    }
+
+    async fn on_channel_delete(&self, ctx: Context, channel_id: ChannelId) {
+        self.handler.on_channel_delete(ctx, channel_id).await
+    }
+
+    async fn on_group_join(&self, ctx: Context, id: ChannelId, user: UserId) {
+        self.handler.on_group_join(ctx, id, user).await
+    }
+
+    async fn on_group_leave(&self, ctx: Context, id: ChannelId, user: UserId) {
+        self.handler.on_group_leave(ctx, id, user).await
+    }
+
+    async fn on_start_typing(&self, ctx: Context, channel: ChannelId, user: UserId) {
+        self.handler.on_start_typing(ctx, channel, user).await
+    }
+
+    async fn on_stop_typing(&self, ctx: Context, channel: ChannelId, user: UserId) {
+        self.handler.on_stop_typing(ctx, channel, user).await
+    }
+
+    async fn on_server_update(
+        &self,
+        ctx: Context,
+        server: ServerId,
+        modifications: PartialServer,
+        remove: Option<ServerField>,
+    ) {
+        self.handler
+            .on_server_update(ctx, server, modifications, remove)
+            .await
+    }
+
+    async fn on_server_delete(&self, ctx: Context, server: ServerId) {
+        self.handler.on_server_delete(ctx, server).await
+    }
+
+    async fn on_server_member_join(&self, ctx: Context, server: ServerId, user: UserId) {}
+
+    async fn on_server_member_update(
+        &self,
+        ctx: Context,
+        member: MemberId,
+        modifications: PartialMember,
+        remove: Option<MemberField>,
+    ) {
+        self.handler
+            .on_server_member_update(ctx, member, modifications, remove)
+            .await
+    }
+
+    async fn on_server_member_leave(&self, ctx: Context, server: ServerId, user: UserId) {
+        self.handler.on_server_member_leave(ctx, server, user).await
+    }
+
+    async fn on_server_role_update(
+        &self,
+        ctx: Context,
+        server: ServerId,
+        role: RoleId,
+        modifications: PartialRole,
+        remove: Option<RoleField>,
+    ) {
+        self.handler
+            .on_server_role_update(ctx, server, role, modifications, remove)
+            .await
+    }
+
+    async fn on_server_role_delete(&self, ctx: Context, server: ServerId, role: RoleId) {
+        self.handler.on_server_role_delete(ctx, server, role).await
+    }
+
+    async fn on_user_update(
+        &self,
+        ctx: Context,
+        id: UserId,
+        modifications: PartialUser,
+        remove: Option<UserField>,
+    ) {
+        self.handler
+            .on_user_update(ctx, id, modifications, remove)
+            .await
+    }
+
+    async fn on_user_relationship_update(
+        &self,
+        ctx: Context,
+        self_id: UserId,
+        other_id: UserId,
+        status: RelationshipStatus,
+    ) {
+        self.handler
             .on_user_relationship_update(ctx, self_id, other_id, status)
             .await
     }
