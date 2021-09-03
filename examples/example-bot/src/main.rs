@@ -1,7 +1,10 @@
 use std::future::Future;
 use std::pin::Pin;
 
-use robespierre::framework::standard::{AfterHandlerCodeFn, Command, CommandCodeFn, CommandResult, FwContext, NormalMessageHandlerCodeFn, StandardFramework, macros::command};
+use robespierre::framework::standard::{
+    macros::command, AfterHandlerCodeFn, Command, CommandCodeFn, CommandResult, FwContext,
+    NormalMessageHandlerCodeFn, StandardFramework,
+};
 use robespierre::model::mention::Mentionable;
 use robespierre::model::ChannelIdExt;
 use robespierre::{async_trait, model::MessageExt, Context, EventHandler, EventHandlerWrap};
@@ -30,7 +33,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .configure(|c| c.prefix("!"))
         .group(|g| {
             g.name("General")
-                .command(|| Command::new("ping", ping as CommandCodeFn))
+                .command(|| Command::new("ping", ping as CommandCodeFn).alias("pong"))
         })
         .normal_message(normal_message as NormalMessageHandlerCodeFn)
         .after(after_handler as AfterHandlerCodeFn);
@@ -46,11 +49,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[command]
-async fn ping(
-    ctx: &FwContext,
-    message: &Message,
-    _args: &str,
-) -> CommandResult {
+async fn ping(ctx: &FwContext, message: &Message, _args: &str) -> CommandResult {
     message.reply(ctx, "Who pinged me?!").await?;
 
     Ok(())

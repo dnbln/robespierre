@@ -223,7 +223,10 @@ impl Group {
             .or_else(|| {
                 self.commands.iter().find_map(|c| {
                     let command_name: &str = c.name.borrow();
-                    if let Some(rest) = command.strip_prefix(command_name) {
+                    let rest = std::iter::once(command_name)
+                        .chain(c.aliases.iter().map(|it| -> &str { it }))
+                        .find_map(|name| command.strip_prefix(name));
+                    if let Some(rest) = rest {
                         if rest.trim() == "" {
                             Some((c, ""))
                         } else if rest.starts_with(char::is_whitespace) {
@@ -246,6 +249,7 @@ pub struct Command {
     description: Option<Cow<'static, str>>,
     usage: Option<Cow<'static, str>>,
     examples: smallvec::SmallVec<[Cow<'static, str>; 4]>,
+    aliases: smallvec::SmallVec<[Cow<'static, str>; 4]>,
     code: CommandCode,
 }
 
@@ -256,6 +260,7 @@ impl Command {
             description: None,
             usage: None,
             examples: smallvec::SmallVec::default(),
+            aliases: smallvec::SmallVec::default(),
             code: code.into(),
         }
     }
@@ -276,6 +281,11 @@ impl Command {
 
     pub fn example(mut self, example: impl Into<Cow<'static, str>>) -> Self {
         self.examples.push(example.into());
+        self
+    }
+
+    pub fn alias(mut self, alias: impl Into<Cow<'static, str>>) -> Self {
+        self.aliases.push(alias.into());
         self
     }
 }

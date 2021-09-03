@@ -46,7 +46,7 @@ fn test_find_command() {
                 .command(|| Command::new("aaa", cmd as CommandCodeFn))
                 .subgroup(|g| {
                     g.name("bbb")
-                        .command(|| Command::new("ccc", cmd as CommandCodeFn))
+                        .command(|| Command::new("ccc", cmd as CommandCodeFn).alias("eee"))
                         .default_command(|| Command::new("ddd", cmd as CommandCodeFn))
                 })
         });
@@ -54,4 +54,5 @@ fn test_find_command() {
     assert_cmd_is("!", &framework, "!bbb ccc", "ccc", "");
     assert_cmd_is("!", &framework, "!bbb", "ddd", "");
     assert_cmd_is("!", &framework, "!bbb ddd", "ddd", "ddd");
+    assert_cmd_is("!", &framework, "!bbb eee", "ccc", "");
 }
