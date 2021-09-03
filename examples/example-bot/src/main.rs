@@ -55,7 +55,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     connection
         .run(
             ctx,
-            EventHandlerWrap::new(CacheWrap::new(FrameworkWrap::new(fw, Handler))),
+            CacheWrap::new(EventHandlerWrap::new(FrameworkWrap::new(fw, Handler))),
         )
         .await?;
 

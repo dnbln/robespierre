@@ -33,6 +33,7 @@ pub enum HttpError {
 pub type Result<T = ()> = StdResult<T, HttpError>;
 
 /// A value that can be used to authenticate on the REST API, either as a bot or as a non-bot user.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum HttpAuthentication<'a> {
     BotToken {
         token: &'a str,

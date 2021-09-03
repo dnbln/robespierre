@@ -11,6 +11,7 @@ use tokio::sync::RwLock;
 
 use robespierre_models::{
     channel::{Channel, ChannelField, Message, PartialChannel, PartialMessage},
+    events::ServerToClientEvent,
     id::{ChannelId, MemberId, MessageId, RoleId, ServerId, UserId},
     server::{
         Member, MemberField, PartialMember, PartialRole, PartialServer, Role, RoleField, Server,
@@ -347,5 +348,72 @@ impl CommitToCache for Message {
 impl<'a> CommitToCache for (RoleId, &'a Role) {
     async fn __commit_to_cache(&self, cache: &Cache) {
         cache.commit_role(self.0, self.1).await
+    }
+}
+
+#[async_trait]
+impl CommitToCache for ServerToClientEvent {
+    async fn __commit_to_cache(&self, cache: &Cache) {
+        #[allow(unused_variables)]
+        match self {
+            ServerToClientEvent::Error { .. } => {}
+            ServerToClientEvent::Authenticated => {}
+            ServerToClientEvent::Pong { .. } => {}
+            ServerToClientEvent::Ready { event } => {
+                for user in event.users.iter() {
+                    user.commit_to_cache_ref(cache).await;
+                }
+                for channel in event.channels.iter() {
+                    channel.commit_to_cache_ref(cache).await;
+                }
+                for server in event.servers.iter() {
+                    server.commit_to_cache_ref(cache).await;
+                }
+                for member in event.members.iter() {
+                    member.commit_to_cache_ref(cache).await;
+                }
+            }
+            ServerToClientEvent::Message { message } => {
+                message.commit_to_cache_ref(cache).await;
+            }
+            ServerToClientEvent::MessageUpdate { id, channel, data } => {
+                cache.patch_message(*channel, *id, || data.clone()).await;
+            }
+            ServerToClientEvent::MessageDelete { id, channel } => {}
+            ServerToClientEvent::ChannelCreate { channel } => {}
+            ServerToClientEvent::ChannelUpdate { id, data, clear } => {
+                cache.patch_channel(*id, || data.clone(), *clear).await;
+            }
+            ServerToClientEvent::ChannelDelete { id } => {}
+            ServerToClientEvent::ChannelGroupJoin { id, user } => {}
+            ServerToClientEvent::ChannelGroupLeave { id, user } => {}
+            ServerToClientEvent::ChannelStartTyping { id, user } => {}
+            ServerToClientEvent::ChannelStopTyping { id, user } => {}
+            ServerToClientEvent::ChannelAck {
+                id,
+                user,
+                message_id,
+            } => {}
+            ServerToClientEvent::ServerUpdate { id, data, clear } => {
+                cache.patch_server(*id, || data.clone(), *clear).await;
+            }
+            ServerToClientEvent::ServerDelete { id } => {}
+            ServerToClientEvent::ServerMemberUpdate { id, data, clear } => {
+                cache.patch_member(*id, || data.clone(), *clear).await;
+            }
+            ServerToClientEvent::ServerMemberJoin { id, user } => {}
+            ServerToClientEvent::ServerMemberLeave { id, user } => {}
+            ServerToClientEvent::ServerRoleUpdate {
+                id,
+                role_id,
+                data,
+                clear,
+            } => {}
+            ServerToClientEvent::ServerRoleDelete { id, role_id } => {}
+            ServerToClientEvent::UserUpdate { id, data, clear } => {
+                cache.patch_user(*id, || data.clone(), *clear).await;
+            }
+            ServerToClientEvent::UserRelationship { id, user, status } => {}
+        }
     }
 }

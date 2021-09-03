@@ -10,11 +10,11 @@ use robespierre_cache::{Cache, CacheConfig, CommitToCache, HasCache};
 #[cfg(feature = "events")]
 use robespierre_events::{
     typing::TypingSession, ConnectionMessage, ConnectionMessanger, EventsError, RawEventHandler,
-    ReadyEvent, ServerToClientEvent,
 };
 use robespierre_http::{Http, HttpAuthentication, HttpError};
 use robespierre_models::{
     channel::{Channel, ChannelField, Message, PartialChannel, PartialMessage},
+    events::{ReadyEvent, ServerToClientEvent},
     id::{ChannelId, MemberId, MessageId, RoleId, ServerId, UserId},
     server::{MemberField, PartialMember, PartialRole, PartialServer, RoleField, ServerField},
     user::{PartialUser, RelationshipStatus, UserField},
@@ -143,12 +143,13 @@ pub trait EventHandler: Send + Sync {
 /// to the wrapped [`EventHandler`]
 #[cfg(all(feature = "events", feature = "cache"))]
 #[derive(Clone)]
-pub struct CacheWrap<T: EventHandler + Clone + 'static>(T);
+pub struct CacheWrap<Ctx: HasCache + Clone + 'static, T: RawEventHandler<Context = Ctx>>(T);
 
 #[cfg(all(feature = "events", feature = "cache"))]
-impl<T> CacheWrap<T>
+impl<Ctx, T> CacheWrap<Ctx, T>
 where
-    T: EventHandler + Clone + 'static,
+    Ctx: HasCache + Clone + 'static,
+    T: RawEventHandler<Context = Ctx>,
 {
     /// Creates a new [`CacheWrap`]
     pub fn new(wrapped: T) -> Self {
@@ -158,192 +159,16 @@ where
 
 #[cfg(all(feature = "events", feature = "cache"))]
 #[async_trait::async_trait]
-impl<T> EventHandler for CacheWrap<T>
+impl<T, Ctx: HasCache + Clone + 'static> RawEventHandler for CacheWrap<Ctx, T>
 where
-    T: EventHandler + Clone + 'static,
+    T: RawEventHandler<Context = Ctx>,
 {
-    async fn on_ready(&self, ctx: Context, ready: ReadyEvent) {
-        if let Some(ref cache) = ctx.cache {
-            for user in ready.users.iter() {
-                user.commit_to_cache_ref(cache).await;
-            }
-            for server in ready.servers.iter() {
-                server.commit_to_cache_ref(cache).await;
-            }
-            for channel in ready.channels.iter() {
-                channel.commit_to_cache_ref(cache).await;
-            }
-            for member in ready.members.iter() {
-                member.commit_to_cache_ref(cache).await;
-            }
-        }
+    type Context = Ctx;
 
-        self.0.on_ready(ctx, ready).await
-    }
+    async fn handle(self, ctx: Self::Context, event: ServerToClientEvent) {
+        event.commit_to_cache_ref(&ctx).await;
 
-    async fn on_message(&self, ctx: Context, message: Message) {
-        if let Some(ref cache) = ctx.cache {
-            message.commit_to_cache_ref(cache).await;
-        }
-
-        self.0.on_message(ctx, message).await
-    }
-
-    async fn on_message_update(
-        &self,
-        ctx: Context,
-        channel: ChannelId,
-        message: MessageId,
-        modifications: PartialMessage,
-    ) {
-        if let Some(ref cache) = ctx.cache {
-            cache
-                .patch_message(channel, message, || modifications.clone())
-                .await;
-        }
-
-        self.0
-            .on_message_update(ctx, channel, message, modifications)
-            .await
-    }
-
-    async fn on_message_delete(&self, ctx: Context, channel_id: ChannelId, message_id: MessageId) {
-        self.0.on_message_delete(ctx, channel_id, message_id).await
-    }
-
-    async fn on_channel_create(&self, ctx: Context, channel: Channel) {
-        if let Some(ref cache) = ctx.cache {
-            channel.commit_to_cache_ref(cache).await;
-        }
-
-        self.0.on_channel_create(ctx, channel).await
-    }
-
-    async fn on_channel_update(
-        &self,
-        ctx: Context,
-        channel_id: ChannelId,
-        modifications: PartialChannel,
-        remove: Option<ChannelField>,
-    ) {
-        if let Some(ref cache) = ctx.cache {
-            cache
-                .patch_channel(channel_id, || modifications.clone(), remove)
-                .await;
-        }
-
-        self.0
-            .on_channel_update(ctx, channel_id, modifications, remove)
-            .await
-    }
-
-    async fn on_channel_delete(&self, ctx: Context, channel_id: ChannelId) {
-        self.0.on_channel_delete(ctx, channel_id).await
-    }
-
-    async fn on_group_join(&self, ctx: Context, id: ChannelId, user: UserId) {
-        self.0.on_group_join(ctx, id, user).await
-    }
-
-    async fn on_group_leave(&self, ctx: Context, id: ChannelId, user: UserId) {
-        self.0.on_group_leave(ctx, id, user).await
-    }
-
-    async fn on_start_typing(&self, ctx: Context, channel: ChannelId, user: UserId) {
-        self.0.on_start_typing(ctx, channel, user).await
-    }
-
-    async fn on_stop_typing(&self, ctx: Context, channel: ChannelId, user: UserId) {
-        self.0.on_stop_typing(ctx, channel, user).await
-    }
-
-    async fn on_server_update(
-        &self,
-        ctx: Context,
-        server: ServerId,
-        modifications: PartialServer,
-        remove: Option<ServerField>,
-    ) {
-        if let Some(ref cache) = ctx.cache {
-            cache
-                .patch_server(server, || modifications.clone(), remove)
-                .await;
-        }
-
-        self.0
-            .on_server_update(ctx, server, modifications, remove)
-            .await
-    }
-
-    async fn on_server_delete(&self, ctx: Context, server: ServerId) {
-        self.0.on_server_delete(ctx, server).await
-    }
-
-    async fn on_server_member_join(&self, ctx: Context, server: ServerId, user: UserId) {
-        self.0.on_server_member_join(ctx, server, user).await
-    }
-
-    async fn on_server_member_update(
-        &self,
-        ctx: Context,
-        member: MemberId,
-        modifications: PartialMember,
-        remove: Option<MemberField>,
-    ) {
-        if let Some(ref cache) = ctx.cache {
-            cache
-                .patch_member(member, || modifications.clone(), remove)
-                .await
-        }
-        self.0
-            .on_server_member_update(ctx, member, modifications, remove)
-            .await
-    }
-
-    async fn on_server_member_leave(&self, ctx: Context, server: ServerId, user: UserId) {
-        self.0.on_server_member_leave(ctx, server, user).await
-    }
-
-    async fn on_server_role_update(
-        &self,
-        ctx: Context,
-        server: ServerId,
-        role: RoleId,
-        modifications: PartialRole,
-        remove: Option<RoleField>,
-    ) {
-        self.0
-            .on_server_role_update(ctx, server, role, modifications, remove)
-            .await
-    }
-
-    async fn on_server_role_delete(&self, ctx: Context, server: ServerId, role: RoleId) {
-        self.0.on_server_role_delete(ctx, server, role).await
-    }
-
-    async fn on_user_update(
-        &self,
-        ctx: Context,
-        id: UserId,
-        modifications: PartialUser,
-        remove: Option<UserField>,
-    ) {
-        if let Some(ref cache) = ctx.cache {
-            cache.patch_user(id, || modifications.clone(), remove).await;
-        }
-        self.0.on_user_update(ctx, id, modifications, remove).await
-    }
-
-    async fn on_user_relationship_update(
-        &self,
-        ctx: Context,
-        self_id: UserId,
-        other_id: UserId,
-        status: RelationshipStatus,
-    ) {
-        self.0
-            .on_user_relationship_update(ctx, self_id, other_id, status)
-            .await
+        self.0.handle(ctx, event).await
     }
 }
 
