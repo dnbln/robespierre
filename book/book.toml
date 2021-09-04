@@ -1,0 +1,10 @@
+[book]
+authors = ["Dinu Blanovschi"]
+language = "en"
+multilingual = false
+src = "src"
+title = "The Robespierre book"
+
+[preprocessor.mdbook-snips]
+command = "mdbook-snips"
+for_imports = false

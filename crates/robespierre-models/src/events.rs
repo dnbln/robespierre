@@ -32,6 +32,8 @@ pub enum ClientToServerEvent {
     },
     Ping {
         time: u32,
+        #[deprecated(note = "Temporary fix for temporary issue")]
+        data: (u8,),
     },
 }
 

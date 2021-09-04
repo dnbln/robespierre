@@ -230,7 +230,7 @@ impl ConnectionInternal {
     async fn hb(&mut self) -> Result {
         tracing::debug!("sending Ping message");
 
-        self.send_event(ClientToServerEvent::Ping { time: 0 })
+        self.send_event(ClientToServerEvent::Ping { time: 0, data: (0,) })
             .await?;
 
         Ok(())

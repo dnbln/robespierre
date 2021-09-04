@@ -1,7 +1,7 @@
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 use robespierre::framework::standard::{
     macros::command, AfterHandlerCodeFn, Command, CommandCodeFn, CommandResult, FwContext,
@@ -68,7 +68,9 @@ async fn ping(ctx: &FwContext, message: &Message, _args: &str) -> CommandResult 
     let commands = d.get::<CommandCounter>().unwrap();
     let num = commands.fetch_add(1, Ordering::Relaxed);
     message.reply(ctx, "Who pinged me?!").await?;
-    message.reply(ctx, format!("I got {} pings since I came online", num)).await?;
+    message
+        .reply(ctx, format!("I got {} pings since I came online", num))
+        .await?;
 
     Ok(())
 }
