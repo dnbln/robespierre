@@ -6,6 +6,8 @@ Currently, wip.
 
 For an example, see [examples/example-bot](examples/example-bot).
 
+For guides on how to use, see [the book](https://dblanovschi.github.io/robespierre).
+
 ## License
 
 `robespierre` is distributed under the terms of both the MIT license and the Apache License (Version 2.0).
