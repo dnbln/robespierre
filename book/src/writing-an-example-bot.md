@@ -383,4 +383,4 @@ Now, let's run it:
 TOKEN=... cargo run
 ```
 
-For the source code of this, see the [ping-reply-pong example](https://github.com/dblanovschi/robespierre/tree/examples/ping-reply-pong).
+For the source code of this, see the [ping-reply-pong example](https://github.com/dblanovschi/robespierre/tree/main/examples/ping-reply-pong).

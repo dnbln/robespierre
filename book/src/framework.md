@@ -287,4 +287,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 # impl robespierre::EventHandler for Handler {}
 ```
 
-For the source code of this, see the [the framework-example-bot example](https://github.com/dblanovschi/robespierre/tree/examples/framework-example-bot).
+For the source code of this, see the [the framework-example-bot example](https://github.com/dblanovschi/robespierre/tree/main/examples/framework-example-bot).
