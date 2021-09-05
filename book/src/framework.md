@@ -74,7 +74,7 @@ Now, let's get rid of the `on_ready` and `on_message` functions:
 # use robespierre_events::Connection;
 # use robespierre_http::Http;
 # use robespierre_models::channel::Message;
-# 
+
 # #[tokio::main]
 # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #     tracing_subscriber::fmt::init();
@@ -139,7 +139,7 @@ use robespierre::framework::standard::{FwContext, CommandResult, macros::command
 # use robespierre_events::Connection;
 # use robespierre_http::Http;
 # use robespierre_models::channel::Message;
-# 
+
 # #[tokio::main]
 # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #     tracing_subscriber::fmt::init();
@@ -203,13 +203,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #     let connection = Connection::connect(&auth).await?;
 # 
 #     let context = Context::new(http, robespierre::typemap::ShareMap::custom()).with_cache(CacheConfig::default());
-# 
+
     let fw = StandardFramework::default()
         .configure(|c| c.prefix("!"))
         .group(|g| {
             g.name("General")
                 .command(|| Command::new("ping", ping as CommandCodeFn))
         });
+
 #     let handler = Handler;
 #     let handler = CacheWrap::new(EventHandlerWrap::new(handler));
 #     connection.run(context, handler).await?;
@@ -267,8 +268,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #             g.name("General")
 #                 .command(|| Command::new("ping", ping as CommandCodeFn))
 #         });
+
     let handler = FrameworkWrap::new(fw, Handler);
     let handler = CacheWrap::new(EventHandlerWrap::new(handler));
+
 #     connection.run(context, handler).await?;
 # 
 #     Ok(())
@@ -286,5 +289,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 # #[robespierre::async_trait]
 # impl robespierre::EventHandler for Handler {}
 ```
+
+Then run:
+```bash
+TOKEN=... cargo run
+```
+
+And send "!ping" in a channel where the bot can see it.
+If everything went correctly, the bot should reply with "pong" to your message.
 
 For the source code of this, see the [the framework-example-bot example](https://github.com/dblanovschi/robespierre/tree/main/examples/framework-example-bot).

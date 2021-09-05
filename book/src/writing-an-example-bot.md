@@ -71,7 +71,7 @@ use robespierre::Authentication;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #     tracing_subscriber::fmt::init();
-# 
+
     let token = std::env::var("TOKEN")
         .expect("Cannot get token; set environment variable TOKEN=... and run again");
 
@@ -90,7 +90,7 @@ use robespierre_http::Http;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #     tracing_subscriber::fmt::init();
-# 
+
     let token = std::env::var("TOKEN")
         .expect("Cannot get token; set environment variable TOKEN=... and run again");
 
@@ -112,7 +112,7 @@ use robespierre_events::Connection;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #     tracing_subscriber::fmt::init();
-# 
+
     let token = std::env::var("TOKEN")
         .expect("Cannot get token; set environment variable TOKEN=... and run again");
 
@@ -136,7 +136,6 @@ use robespierre_events::Connection;
 # use robespierre_http::Http;
 use robespierre_models::events::ReadyEvent;
 
-# 
 # #[tokio::main]
 # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #     tracing_subscriber::fmt::init();
@@ -152,7 +151,6 @@ use robespierre_models::events::ReadyEvent;
 #
 #     Ok(())
 # }
-#
 
 #[derive(Clone)]
 struct Handler;
@@ -196,8 +194,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-#
-#
+
 # #[derive(Clone)]
 # struct Handler;
 # 
@@ -234,7 +231,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #     let http = Http::new(&auth).await?;
 # 
 #     let connection = Connection::connect(&auth).await?;
-# 
+
     let context = Context::new(http, robespierre::typemap::ShareMap::custom()).with_cache(CacheConfig::default());
 
     let handler = Handler;
@@ -244,8 +241,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-#
-#
+
 # #[derive(Clone)]
 # struct Handler;
 # 
@@ -299,7 +295,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #     let http = Http::new(&auth).await?;
 # 
 #     let connection = Connection::connect(&auth).await?;
-# 
+
     let context = Context::new(http, robespierre::typemap::ShareMap::custom()).with_cache(CacheConfig::default());
 
     let handler = Handler;
@@ -309,8 +305,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-#
-#
+
 # #[derive(Clone)]
 # struct Handler;
 # 
