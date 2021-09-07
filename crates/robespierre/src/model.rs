@@ -2,12 +2,7 @@
 use robespierre_cache::CommitToCache;
 #[cfg(feature = "events")]
 use robespierre_events::typing::TypingSession;
-use robespierre_models::{
-    channel::{Channel, Message, ReplyData},
-    id::{AttachmentId, ChannelId, ServerId, UserId},
-    server::Server,
-    user::User,
-};
+use robespierre_models::{channel::{Channel, Message, ReplyData}, id::{AttachmentId, ChannelId, MemberId, ServerId, UserId}, server::{Member, Server}, user::User};
 
 use crate::{CacheHttp, Context, HasHttp, Result};
 
@@ -23,7 +18,10 @@ impl<T> AsRefContext for T where T: AsRef<Context> + Send + Sync + 'static {}
 #[cfg(not(feature = "cache"))]
 #[async_trait::async_trait]
 trait CommitToCache {
-    async fn commit_to_cache<T>(self, cache: T) -> Self where Self: Sized {
+    async fn commit_to_cache<T>(self, cache: T) -> Self
+    where
+        Self: Sized,
+    {
         self
     }
 }
@@ -204,6 +202,7 @@ impl ChannelIdExt for ChannelId {
 #[async_trait::async_trait]
 pub trait ServerIdExt {
     async fn server(&self, ctx: &impl CacheHttp) -> Result<Server>;
+    async fn member(&self, ctx: &impl CacheHttp, user: UserId) -> Result<Member>;
 }
 
 #[async_trait::async_trait]
@@ -222,6 +221,15 @@ impl ServerIdExt for ServerId {
             .await?
             .commit_to_cache(ctx)
             .await)
+    }
+
+    async fn member(&self, ctx: &impl CacheHttp, user: UserId) -> Result<Member> {
+        MemberId {
+            user,
+            server: *self,
+        }
+        .member(ctx)
+        .await
     }
 }
 
@@ -243,6 +251,30 @@ impl UserIdExt for UserId {
         Ok(ctx
             .http()
             .fetch_user(*self)
+            .await?
+            .commit_to_cache(ctx)
+            .await)
+    }
+}
+
+#[async_trait::async_trait]
+pub trait MemberIdExt {
+    async fn member(&self, ctx: &impl CacheHttp) -> Result<Member>;
+}
+
+#[async_trait::async_trait]
+impl MemberIdExt for MemberId {
+    async fn member(&self, ctx: &impl CacheHttp) -> Result<Member> {
+        #[cfg(feature = "cache")]
+        if let Some(cache) = ctx.cache() {
+            if let Some(member) = cache.get_member(*self).await {
+                return Ok(member);
+            }
+        }
+
+        Ok(ctx
+            .http()
+            .fetch_member(self.server, self.user)
             .await?
             .commit_to_cache(ctx)
             .await)

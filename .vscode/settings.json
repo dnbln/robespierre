@@ -1,8 +1,2 @@
 {
-    "rust-analyzer.cargo.features": [
-        "cache",
-        "events",
-        "framework",
-        "framework-macros",
-    ]
 }

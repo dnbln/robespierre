@@ -162,7 +162,7 @@ use robespierre::framework::standard::{FwContext, CommandResult, macros::command
 # }
 
 #[command]
-async fn ping(ctx: &FwContext, msg: &Message, _args: &str) -> CommandResult {
+async fn ping(ctx: &FwContext, msg: &Message) -> CommandResult {
     msg.reply(ctx, "pong").await?;
     Ok(())
 }
@@ -219,7 +219,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 # 
 # #[command]
-# async fn ping(ctx: &FwContext, msg: &Message, _args: &str) -> CommandResult {
+# async fn ping(ctx: &FwContext, msg: &Message) -> CommandResult {
 #     msg.reply(ctx, "pong").await?;
 #     Ok(())
 # }
@@ -278,7 +278,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 # 
 # #[command]
-# async fn ping(ctx: &FwContext, msg: &Message, _args: &str) -> CommandResult {
+# async fn ping(ctx: &FwContext, msg: &Message) -> CommandResult {
 #     msg.reply(ctx, "pong").await?;
 #     Ok(())
 # }

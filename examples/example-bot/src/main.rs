@@ -3,6 +3,7 @@ use std::pin::Pin;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
+use robespierre::framework::standard::extractors::Args;
 use robespierre::framework::standard::{
     macros::command, AfterHandlerCodeFn, Command, CommandCodeFn, CommandResult, FwContext,
     NormalMessageHandlerCodeFn, StandardFramework,
@@ -48,6 +49,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .group(|g| {
             g.name("General")
                 .command(|| Command::new("ping", ping as CommandCodeFn).alias("pong"))
+                .command(|| Command::new("repeat", repeat as CommandCodeFn))
         })
         .normal_message(normal_message as NormalMessageHandlerCodeFn)
         .after(after_handler as AfterHandlerCodeFn);
@@ -63,7 +65,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[command]
-async fn ping(ctx: &FwContext, message: &Message, _args: &str) -> CommandResult {
+async fn ping(ctx: &FwContext, message: &Message) -> CommandResult {
     let d = ctx.data_lock_write().await;
     let commands = d.get::<CommandCounter>().unwrap();
     let num = commands.fetch_add(1, Ordering::Relaxed);
@@ -71,6 +73,19 @@ async fn ping(ctx: &FwContext, message: &Message, _args: &str) -> CommandResult 
     message
         .reply(ctx, format!("I got {} pings since I came online", num))
         .await?;
+
+    Ok(())
+}
+
+#[command]
+async fn repeat(ctx: &FwContext, message: &Message, arg: Args<(String,)>) -> CommandResult {
+    if message.author != "01FE638VK54XZ6FEK167D4VC9N" {
+        return Ok(())
+    }
+
+    let s = arg.0.0;
+
+    message.reply(ctx, s).await?;
 
     Ok(())
 }

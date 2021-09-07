@@ -13,6 +13,8 @@ pub mod macros {
     pub use robespierre_fw_macros::command;
 }
 
+pub mod extractors;
+
 #[derive(Default)]
 pub struct StdFwConfig {
     prefix: Cow<'static, str>,
@@ -395,7 +397,8 @@ impl fmt::Debug for CommandCode {
     }
 }
 
-pub type CommandResult<T = ()> = Result<T, Box<dyn std::error::Error + Send + Sync + 'static>>;
+pub type CommandError = Box<dyn std::error::Error + Send + Sync + 'static>;
+pub type CommandResult<T = ()> = Result<T, CommandError>;
 
 impl CommandCode {
     pub async fn invoke(&self, ctx: &FwContext, message: &Message, args: &str) -> CommandResult {

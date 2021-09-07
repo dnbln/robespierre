@@ -46,7 +46,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[command]
-async fn ping(ctx: &FwContext, msg: &Message, _args: &str) -> CommandResult {
+async fn ping(ctx: &FwContext, msg: &Message) -> CommandResult {
     msg.reply(ctx, "pong").await?;
     Ok(())
 }
@@ -105,7 +105,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 # #[command]
-# async fn ping(ctx: &FwContext, msg: &Message, _args: &str) -> CommandResult {
+# async fn ping(ctx: &FwContext, msg: &Message) -> CommandResult {
 #     msg.reply(ctx, "pong").await?;
 #     Ok(())
 # }
@@ -178,7 +178,7 @@ impl robespierre::typemap::Key for CommandCounterKey {
 # }
 # 
 # #[command]
-# async fn ping(ctx: &FwContext, msg: &Message, _args: &str) -> CommandResult {
+# async fn ping(ctx: &FwContext, msg: &Message) -> CommandResult {
 #     msg.reply(ctx, "pong").await?;
 #     Ok(())
 # }
@@ -247,7 +247,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 # 
 # #[command]
-# async fn ping(ctx: &FwContext, msg: &Message, _args: &str) -> CommandResult {
+# async fn ping(ctx: &FwContext, msg: &Message) -> CommandResult {
 #     msg.reply(ctx, "pong").await?;
 #     Ok(())
 # }
@@ -317,7 +317,7 @@ use robespierre::UserData;
 # }
 
 #[command]
-async fn ping(ctx: &FwContext, msg: &Message, _args: &str) -> CommandResult {
+async fn ping(ctx: &FwContext, msg: &Message) -> CommandResult {
 #     msg.reply(ctx, "pong").await?;
 
     let data = ctx.data_lock_read().await;
@@ -393,7 +393,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 # #[command]
-# async fn ping(ctx: &FwContext, msg: &Message, _args: &str) -> CommandResult {
+# async fn ping(ctx: &FwContext, msg: &Message) -> CommandResult {
 #     msg.reply(ctx, "pong").await?;
 # 
 #     let data = ctx.data_lock_read().await;
@@ -404,7 +404,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 # }
 
 #[command]
-async fn command_counter(ctx: &FwContext, msg: &Message, _args: &str) -> CommandResult {
+async fn command_counter(ctx: &FwContext, msg: &Message) -> CommandResult {
     let data = ctx.data_lock_read().await;
     let counter = data.get::<CommandCounterKey>().unwrap();
     let count = counter.fetch_add(1, Ordering::SeqCst); // this is itself a command,

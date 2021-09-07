@@ -32,7 +32,7 @@ struct Handler;
 
 #[robespierre::async_trait]
 impl robespierre::EventHandler for Handler {
-    async fn on_ready(&self, ctx: Context, ready: ReadyEvent) {
+    async fn on_ready(&self, _ctx: Context, _ready: ReadyEvent) {
         tracing::info!("We're ready!");
     }
 

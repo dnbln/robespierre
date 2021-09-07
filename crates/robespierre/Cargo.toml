@@ -10,7 +10,7 @@ license = "MIT OR Apache-2.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = []
+default = ["cache", "framework", "events", "framework-macros"]
 
 interpreter = []
 cache = ["robespierre-cache"]
@@ -33,3 +33,4 @@ thiserror = "1"
 smallvec = "1"
 tokio = { version = "1", features = ["full"] }
 typemap = "0.3"
+futures = "0.3"

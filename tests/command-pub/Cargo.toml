@@ -1,5 +1,5 @@
 [package]
-name = "framework-example-bot"
+name = "command-pub"
 version = "0.1.0"
 edition = "2018"
 publish = false
@@ -12,6 +12,3 @@ robespierre-cache = {path = "../../crates/robespierre-cache"}
 robespierre-http = {path = "../../crates/robespierre-http"}
 robespierre-events = {path = "../../crates/robespierre-events"}
 robespierre-models = {path = "../../crates/robespierre-models"}
-tokio = { version = "1", features = ["full"] }
-tracing = "0.1"
-tracing-subscriber = "0.2"
