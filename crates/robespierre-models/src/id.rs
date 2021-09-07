@@ -3,7 +3,7 @@ use std::{cmp::Ordering, convert::{Infallible, TryFrom, TryInto}, fmt::Display, 
 use serde::{Deserialize, Serialize};
 
 /// 26-bytes of numeric or uppercase letter characters
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Serialize, Deserialize, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(try_from = "String", into = "String")]
 pub struct IdString([u8; 26]);
 
@@ -76,6 +76,12 @@ impl AsRef<str> for IdString {
 impl From<IdString> for String {
     fn from(id: IdString) -> Self {
         id.as_ref().to_string()
+    }
+}
+
+impl std::fmt::Debug for IdString {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        <str as Display>::fmt(self.as_ref(), f)
     }
 }
 

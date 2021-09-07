@@ -16,8 +16,9 @@ use robespierre_cache::CacheConfig;
 use robespierre_events::Connection;
 use robespierre_http::Http;
 use robespierre_models::autumn::AutumnTag;
-use robespierre_models::channel::{Message, ReplyData};
+use robespierre_models::channel::{Channel, Message, ReplyData};
 use robespierre_models::id::{ChannelId, ServerId, UserId};
+use robespierre_models::user::User;
 
 struct CommandCounter;
 impl robespierre::typemap::Key for CommandCounter {
@@ -50,6 +51,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             g.name("General")
                 .command(|| Command::new("ping", ping as CommandCodeFn).alias("pong"))
                 .command(|| Command::new("repeat", repeat as CommandCodeFn))
+                .command(|| Command::new("stat_user", stat_user as CommandCodeFn))
+                .command(|| Command::new("stat_channel", stat_channel as CommandCodeFn))
         })
         .normal_message(normal_message as NormalMessageHandlerCodeFn)
         .after(after_handler as AfterHandlerCodeFn);
@@ -86,6 +89,20 @@ async fn repeat(ctx: &FwContext, message: &Message, arg: Args<(String,)>) -> Com
     let s = arg.0.0;
 
     message.reply(ctx, s).await?;
+
+    Ok(())
+}
+
+#[command]
+async fn stat_channel(ctx: &FwContext, message: &Message, Args((channel,)): Args<(Channel,)>) -> CommandResult {
+    message.reply(ctx, format!("{:?}", channel)).await?;
+
+    Ok(())
+}
+
+#[command]
+async fn stat_user(ctx: &FwContext, message: &Message, Args((user,)): Args<(User,)>) -> CommandResult {
+    message.reply(ctx, format!("{:?}", user)).await?;
 
     Ok(())
 }
