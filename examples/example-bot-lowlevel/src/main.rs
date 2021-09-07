@@ -6,7 +6,7 @@ use std::sync::{
 use robespierre_cache::{Cache, CacheConfig, CommitToCache, HasCache};
 use robespierre_events::{Authentication, Connection, RawEventHandler};
 use robespierre_http::{Http, HttpAuthentication};
-use robespierre_models::{autumn::AutumnTag, channel::ReplyData};
+use robespierre_models::{autumn::AutumnTag, channel::{MessageContent, ReplyData}};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -61,7 +61,7 @@ impl RawEventHandler for Handler {
 
         match event {
             robespierre_models::events::ServerToClientEvent::Message { message } => {
-                if message.content == "Hello" {
+                if matches!(&message.content, MessageContent::Content(s) if s == "Hello") {
                     let author = ctx.0.fetch_user(message.author).await.unwrap();
                     let channel = ctx.0.fetch_channel(message.channel).await.unwrap();
                     let server = if let Some(server) = channel.server_id() {

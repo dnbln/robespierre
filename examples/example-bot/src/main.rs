@@ -16,7 +16,7 @@ use robespierre_cache::CacheConfig;
 use robespierre_events::Connection;
 use robespierre_http::Http;
 use robespierre_models::autumn::AutumnTag;
-use robespierre_models::channel::{Channel, Message, ReplyData};
+use robespierre_models::channel::{Channel, Message, MessageContent, ReplyData};
 use robespierre_models::id::{ChannelId, ServerId, UserId};
 use robespierre_models::user::User;
 
@@ -108,7 +108,7 @@ async fn stat_user(ctx: &FwContext, message: &Message, Args((user,)): Args<(User
 }
 
 async fn normal_message_impl(ctx: &FwContext, message: &Message) {
-    if message.content != "Hello" {
+    if !matches!(&message.content, MessageContent::Content(s) if s == "Hello") {
         return;
     }
 

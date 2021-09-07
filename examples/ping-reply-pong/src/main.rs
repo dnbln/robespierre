@@ -8,6 +8,7 @@ use robespierre_cache::CacheConfig;
 use robespierre_events::Connection;
 use robespierre_http::Http;
 use robespierre_models::channel::Message;
+use robespierre_models::channel::MessageContent;
 use robespierre_models::events::ReadyEvent;
 
 #[tokio::main]
@@ -37,7 +38,7 @@ impl robespierre::EventHandler for Handler {
     }
 
     async fn on_message(&self, ctx: Context, message: Message) {
-        if message.content == "ping" {
+        if matches!(&message.content, MessageContent::Content(s) if s == "ping") {
             let _ = message.reply(&ctx, "pong").await;
         }
     }

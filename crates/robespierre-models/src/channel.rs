@@ -101,291 +101,183 @@ impl Channel {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+pub enum ChannelType {
+    SavedMessages,
+    DirectMessage,
+    Group,
+    TextChannel,
+    VoiceChannel,
+}
+
 /// A channel where all the fields are optional, and can be treated as a patch that
 /// can be applied to a [`Channel`].
 #[derive(Deserialize, Serialize, Debug, Clone, Eq, PartialEq)]
-#[serde(tag = "channel_type")]
-pub enum PartialChannel {
-    SavedMessages {
-        #[serde(rename = "_id", default, skip_serializing_if = "Option::is_none")]
-        id: Option<ChannelId>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        user: Option<UserId>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        nonce: Option<String>,
-    },
-    DirectMessage {
-        #[serde(rename = "_id", default, skip_serializing_if = "Option::is_none")]
-        id: Option<ChannelId>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        recipients: Option<Vec<UserId>>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        last_message: Option<LastMessageData>,
+#[serde(deny_unknown_fields)]
+pub struct PartialChannel {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    user: Option<UserId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    nonce: Option<String>,
 
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        nonce: Option<String>,
-    },
-    Group {
-        #[serde(rename = "_id", default, skip_serializing_if = "Option::is_none")]
-        id: Option<ChannelId>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        recipients: Option<Vec<UserId>>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        name: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        owner: Option<UserId>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        description: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        last_message: Option<LastMessageData>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        icon: Option<Attachment>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        permissions: Option<ChannelPermissions>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        nonce: Option<String>,
-    },
-    TextChannel {
-        #[serde(rename = "_id", default, skip_serializing_if = "Option::is_none")]
-        id: Option<ChannelId>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        server: Option<ServerId>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        name: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        description: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        icon: Option<Attachment>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        default_permissions: Option<ChannelPermissions>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        role_permissions: Option<HashMap<RoleId, ChannelPermissions>>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        last_message: Option<MessageId>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        nonce: Option<String>,
-    },
-    VoiceChannel {
-        #[serde(rename = "_id", default, skip_serializing_if = "Option::is_none")]
-        id: Option<ChannelId>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        server: Option<ServerId>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        name: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        description: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        icon: Option<Attachment>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        default_permissions: Option<ChannelPermissions>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        role_permissions: Option<HashMap<RoleId, ChannelPermissions>>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        nonce: Option<String>,
-    },
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    recipients: Option<Vec<UserId>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    last_message: Option<LastMessageData>,
+
+    name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    owner: Option<UserId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    icon: Option<Attachment>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    permissions: Option<ChannelPermissions>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    server: Option<ServerId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    default_permissions: Option<ChannelPermissions>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    role_permissions: Option<HashMap<RoleId, ChannelPermissions>>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    channel_type: Option<ChannelType>,
 }
 
 impl PartialChannel {
     /// Treats self as a patch and applies it to channel.
     pub fn patch(self, ch: &mut Channel) {
-        match (self, ch) {
-            (
-                PartialChannel::SavedMessages {
-                    id: pid,
-                    user: puser,
-                    nonce: pnonce,
-                },
-                Channel::SavedMessages { id, user, nonce },
-            ) => {
-                if let Some(pid) = pid {
-                    *id = pid;
-                }
-                if let Some(puser) = puser {
+        match ch {
+            Channel::SavedMessages { id: _, user, nonce } => {
+                if let Some(puser) = self.user {
                     *user = puser;
                 }
-                if let Some(pnonce) = pnonce {
+                if let Some(pnonce) = self.nonce {
                     *nonce = Some(pnonce);
                 }
             }
-            (
-                PartialChannel::DirectMessage {
-                    id: pid,
-                    recipients: precipients,
-                    last_message: plast_message,
-                    nonce: pnonce,
-                },
-                Channel::DirectMessage {
-                    id,
-                    recipients,
-                    last_message,
-                    nonce,
-                },
-            ) => {
-                if let Some(pid) = pid {
-                    *id = pid;
-                }
-                if let Some(precipients) = precipients {
+            Channel::DirectMessage {
+                id: _,
+                recipients,
+                last_message,
+                nonce,
+            } => {
+                if let Some(precipients) = self.recipients {
                     *recipients = precipients;
                 }
-                if let Some(plast_message) = plast_message {
+                if let Some(plast_message) = self.last_message {
                     *last_message = plast_message;
                 }
-                if let Some(pnonce) = pnonce {
+                if let Some(pnonce) = self.nonce {
                     *nonce = Some(pnonce);
                 }
             }
-            (
-                PartialChannel::Group {
-                    id: pid,
-                    recipients: precipients,
-                    name: pname,
-                    owner: powner,
-                    description: pdescription,
-                    last_message: plast_message,
-                    icon: picon,
-                    permissions: ppermissions,
-                    nonce: pnonce,
-                },
-                Channel::Group {
-                    id,
-                    recipients,
-                    name,
-                    owner,
-                    description,
-                    last_message,
-                    icon,
-                    permissions,
-                    nonce,
-                },
-            ) => {
-                if let Some(pid) = pid {
-                    *id = pid;
-                }
-                if let Some(precipients) = precipients {
+            Channel::Group {
+                id: _,
+                recipients,
+                name,
+                owner,
+                description,
+                last_message,
+                icon,
+                permissions,
+                nonce,
+            } => {
+                if let Some(precipients) = self.recipients {
                     *recipients = precipients;
                 }
-                if let Some(pname) = pname {
+                if let Some(pname) = self.name {
                     *name = pname;
                 }
-                if let Some(powner) = powner {
+                if let Some(powner) = self.owner {
                     *owner = powner;
                 }
-                if let Some(pdescription) = pdescription {
+                if let Some(pdescription) = self.description {
                     *description = Some(pdescription);
                 }
-                if let Some(plast_message) = plast_message {
+                if let Some(plast_message) = self.last_message {
                     *last_message = plast_message;
                 }
-                if let Some(picon) = picon {
+                if let Some(picon) = self.icon {
                     *icon = Some(picon);
                 }
-                if let Some(ppermissions) = ppermissions {
+                if let Some(ppermissions) = self.permissions {
                     *permissions = Some(ppermissions);
                 }
-                if let Some(pnonce) = pnonce {
+                if let Some(pnonce) = self.nonce {
                     *nonce = Some(pnonce);
                 }
             }
-            (
-                PartialChannel::TextChannel {
-                    id: pid,
-                    server: pserver,
-                    name: pname,
-                    description: pdescription,
-                    icon: picon,
-                    default_permissions: pdefault_permissions,
-                    role_permissions: prole_permissions,
-                    last_message: plast_message,
-                    nonce: pnonce,
-                },
-                Channel::TextChannel {
-                    id,
-                    server,
-                    name,
-                    description,
-                    icon,
-                    default_permissions,
-                    role_permissions,
-                    last_message,
-                    nonce,
-                },
-            ) => {
-                if let Some(pid) = pid {
-                    *id = pid;
-                }
-                if let Some(pserver) = pserver {
+            Channel::TextChannel {
+                id: _,
+                server,
+                name,
+                description,
+                icon,
+                default_permissions,
+                role_permissions,
+                last_message: _,
+                nonce,
+            } => {
+                if let Some(pserver) = self.server {
                     *server = pserver;
                 }
-                if let Some(pname) = pname {
+                if let Some(pname) = self.name {
                     *name = pname;
                 }
-                if let Some(pdescription) = pdescription {
+                if let Some(pdescription) = self.description {
                     *description = Some(pdescription);
                 }
-                if let Some(picon) = picon {
+                if let Some(picon) = self.icon {
                     *icon = Some(picon);
                 }
-                if let Some(pdefault_permissions) = pdefault_permissions {
+                if let Some(pdefault_permissions) = self.default_permissions {
                     *default_permissions = Some(pdefault_permissions);
                 }
-                if let Some(prole_permissions) = prole_permissions {
+                if let Some(prole_permissions) = self.role_permissions {
                     *role_permissions = prole_permissions;
                 }
-                if let Some(plast_message) = plast_message {
-                    *last_message = Some(plast_message);
-                }
-                if let Some(pnonce) = pnonce {
+                // if let Some(plast_message) = self.last_message {
+                //     *last_message = Some(plast_message);
+                // }
+                if let Some(pnonce) = self.nonce {
                     *nonce = Some(pnonce);
                 }
             }
-            (
-                PartialChannel::VoiceChannel {
-                    id: pid,
-                    server: pserver,
-                    name: pname,
-                    description: pdescription,
-                    icon: picon,
-                    default_permissions: pdefault_permissions,
-                    role_permissions: prole_permissions,
-                    nonce: pnonce,
-                },
-                Channel::VoiceChannel {
-                    id,
-                    server,
-                    name,
-                    description,
-                    icon,
-                    default_permissions,
-                    role_permissions,
-                    nonce,
-                },
-            ) => {
-                if let Some(pid) = pid {
-                    *id = pid;
-                }
-                if let Some(pserver) = pserver {
+            Channel::VoiceChannel {
+                id: _,
+                server,
+                name,
+                description,
+                icon,
+                default_permissions,
+                role_permissions,
+                nonce,
+            } => {
+                if let Some(pserver) = self.server {
                     *server = pserver;
                 }
-                if let Some(pname) = pname {
+                if let Some(pname) = self.name {
                     *name = pname;
                 }
-                if let Some(pdescription) = pdescription {
+                if let Some(pdescription) = self.description {
                     *description = Some(pdescription);
                 }
-                if let Some(picon) = picon {
+                if let Some(picon) = self.icon {
                     *icon = Some(picon);
                 }
-                if let Some(pdefault_permissions) = pdefault_permissions {
+                if let Some(pdefault_permissions) = self.default_permissions {
                     *default_permissions = Some(pdefault_permissions);
                 }
-                if let Some(prole_permissions) = prole_permissions {
+                if let Some(prole_permissions) = self.role_permissions {
                     *role_permissions = prole_permissions;
                 }
-                if let Some(pnonce) = pnonce {
+                if let Some(pnonce) = self.nonce {
                     *nonce = Some(pnonce);
                 }
             }
-            _ => panic!("patch on different types of channels"),
         }
     }
 }
@@ -461,7 +353,7 @@ pub struct Message {
     pub nonce: Option<String>,
     pub channel: ChannelId,
     pub author: UserId,
-    pub content: String,
+    pub content: MessageContent,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub attachments: Vec<Attachment>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -472,6 +364,28 @@ pub struct Message {
     pub mentions: Vec<UserId>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub replies: Vec<MessageId>,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum SystemMessage {
+    Text { content: String },
+    UserAdded { id: UserId, by: UserId },
+    UserRemove { id: UserId, by: UserId },
+    UserJoined { id: UserId },
+    UserLeft { id: UserId },
+    UserKicked { id: UserId },
+    UserBanned { id: UserId },
+    ChannelRenamed { name: String, by: UserId },
+    ChannelDescriptionChanged { by: UserId },
+    ChannelIconChanged { by: UserId },
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[serde(untagged)]
+pub enum MessageContent {
+    Content(String),
+    SystemMessage(SystemMessage),
 }
 
 /// A message where all the fields are optional, and can be treated as a patch
@@ -487,7 +401,7 @@ pub struct PartialMessage {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub author: Option<UserId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub content: Option<String>,
+    pub content: Option<MessageContent>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub attachments: Option<Vec<Attachment>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

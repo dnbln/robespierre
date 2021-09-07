@@ -2,7 +2,7 @@ use std::{borrow::{Borrow, Cow}, fmt, future::Future, pin::Pin};
 
 #[cfg(feature = "cache")]
 use robespierre_cache::{Cache, HasCache};
-use robespierre_models::channel::Message;
+use robespierre_models::channel::{Message, MessageContent};
 
 use crate::{Context, HasHttp, UserData};
 
@@ -97,7 +97,11 @@ impl Framework for StandardFramework {
 
     async fn handle(&self, ctx: Self::Context, message: &Message) {
         let prefix: &str = self.config.prefix.borrow();
-        if let Some(command) = message.content.strip_prefix(prefix) {
+        let message_content = match &message.content {
+            MessageContent::Content(c) => c,
+            MessageContent::SystemMessage(_) => return,
+        };
+        if let Some(command) = message_content.strip_prefix(prefix) {
             let command = self.root_group.find_command(command);
 
             match command {
