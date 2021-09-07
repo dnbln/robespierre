@@ -25,7 +25,7 @@ pub fn command(
     let result = quote! {
         #command_func
 
-        fn #old_name <'a> (
+        pub fn #old_name <'a> (
             ctx: &'a ::robespierre::framework::standard::FwContext,
             message: &'a ::robespierre_models::channel::Message,
             args: &'a str,
