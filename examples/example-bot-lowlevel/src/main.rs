@@ -105,7 +105,7 @@ impl RawEventHandler for Handler {
                 }
 
                 // framework commands
-                if message.content == "!ping" || message.content == "!pong" {
+                if matches!(&message.content, MessageContent::Content(s) if s == "!ping" || s == "!pong") {
                     let num = ctx.2.fetch_add(1, Ordering::Relaxed);
 
                     let _ = ctx
