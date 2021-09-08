@@ -129,6 +129,11 @@ async fn repeat_with_commas(
 }
 ```
 
+Note: valid values include everything that implements `Into<Cow<'static, str>>`,
+but for `#[delimiters()]`, they have to all be of the same type.
+
+If you need values of multiple types, then you can use multiple `#[delimiters]` attributes.
+
 
 A full working example:
 
