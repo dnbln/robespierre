@@ -1,6 +1,15 @@
 pub extern crate async_std;
 pub extern crate typemap;
 
+pub extern crate robespierre_models;
+pub extern crate robespierre_http;
+
+#[cfg(feature = "cache")]
+pub extern crate robespierre_cache;
+
+#[cfg(feature = "events")]
+pub extern crate robespierre_events;
+
 use std::sync::Arc;
 
 #[cfg(feature = "framework")]
