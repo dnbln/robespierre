@@ -24,17 +24,38 @@ pub struct Msg {
 }
 
 pub trait FromMessage: Sized {
+    type Config: ExtractorConfigBuilder + Send + 'static;
     type Fut: Future<Output = CommandResult<Self>> + Send;
 
-    fn from_message(ctx: FwContext, message: Msg) -> Self::Fut;
+    fn from_message(ctx: FwContext, message: Msg, config: Self::Config) -> Self::Fut;
 }
 
+impl<T> FromMessage for Option<T> where T: FromMessage {
+    type Config = T::Config;
+
+    type Fut = Pin<Box<dyn Future<Output=CommandResult<Self>> + Send>>;
+
+    fn from_message(ctx: FwContext, message: Msg, config: Self::Config) -> Self::Fut {
+        Box::pin(async move {
+            match T::from_message(ctx, message, config).await {
+                Ok(v) => Ok::<_, CommandError>(Some(v)),
+                Err(e) => {
+                    tracing::debug!("Error at Option<T> as FromMessage: {}, dbg: {:?}, returning None", e, e);
+                    Ok(None)
+                },
+            }
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Author(pub User);
 
 impl FromMessage for Author {
+    type Config = ();
     type Fut = Pin<Box<dyn Future<Output = CommandResult<Self>> + Send>>;
 
-    fn from_message(ctx: FwContext, message: Msg) -> Self::Fut {
+    fn from_message(ctx: FwContext, message: Msg, _config: Self::Config) -> Self::Fut {
         Box::pin(async move {
             let fut = message.message.author(&ctx);
             Ok::<_, CommandError>(Author(fut.await?))
@@ -46,12 +67,14 @@ impl FromMessage for Author {
 #[error("not in server")]
 pub struct NotInServer;
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct AuthorMember(pub Member);
 
 impl FromMessage for AuthorMember {
+    type Config = ();
     type Fut = Pin<Box<dyn Future<Output = CommandResult<Self>> + Send>>;
 
-    fn from_message(ctx: FwContext, message: Msg) -> Self::Fut {
+    fn from_message(ctx: FwContext, message: Msg, _config: Self::Config) -> Self::Fut {
         Box::pin(async move {
             let server = message.message.server_id(&ctx).await?.ok_or(NotInServer)?;
 
@@ -62,30 +85,34 @@ impl FromMessage for AuthorMember {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RawArgs(pub Arc<String>);
 
 impl FromMessage for RawArgs {
+    type Config = ();
     type Fut = Ready<CommandResult<Self>>;
 
-    fn from_message(_ctx: FwContext, message: Msg) -> Self::Fut {
+    fn from_message(_ctx: FwContext, message: Msg, _config: Self::Config) -> Self::Fut {
         ready(Ok(Self(Arc::clone(&message.args))))
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Args<T: ArgTuple>(pub T);
 
 impl<T: ArgTuple> FromMessage for Args<T> {
+    type Config = ArgsConfig;
     type Fut = Pin<Box<dyn Future<Output = CommandResult<Self>> + Send + 'static>>;
 
-    fn from_message(ctx: FwContext, message: Msg) -> Self::Fut {
+    fn from_message(ctx: FwContext, message: Msg, config: Self::Config) -> Self::Fut {
         Box::pin(async move {
-            let fut = T::from_message(ctx, message);
+            let fut = T::from_message(ctx, message, config);
             Ok::<_, CommandError>(Args(fut.await?))
         })
     }
 }
 
-pub trait ArgTuple: FromMessage + Sized {}
+pub trait ArgTuple: FromMessage<Config = ArgsConfig> + Sized {}
 
 #[derive(Debug, thiserror::Error)]
 #[error("need arg value error")]
@@ -94,6 +121,8 @@ pub struct NeedArgValueError;
 pub trait Arg: Sized + Send {
     type Err: std::error::Error + Send + Sync + 'static;
     type Fut: Future<Output = Result<(Self, PushBack), Self::Err>> + Send + 'static;
+
+    const TRIM: bool = true;
 
     /// used when args are over
     fn default_arg_value() -> Result<Self, NeedArgValueError> {
@@ -125,6 +154,8 @@ impl Arg for String {
     type Err = Infallible;
 
     type Fut = Ready<Result<(Self, PushBack), Self::Err>>;
+
+    const TRIM: bool = false;
 
     fn parse_arg(_ctx: &FwContext, _msg: &Msg, s: &str) -> Self::Fut {
         ready(Ok((s.to_string(), PushBack::No)))
@@ -237,6 +268,8 @@ where
 
     type Fut = Pin<Box<dyn Future<Output = Result<(Self, PushBack), Self::Err>> + Send>>;
 
+    const TRIM: bool = <T as Arg>::TRIM;
+
     fn default_arg_value() -> Result<Self, NeedArgValueError> {
         Ok(None)
     }
@@ -262,16 +295,14 @@ impl<T> FromMessage for (T,)
 where
     T: Arg,
 {
+    type Config = ArgsConfig;
     type Fut = Pin<Box<dyn Future<Output = CommandResult<Self>> + Send>>;
 
-    fn from_message(ctx: FwContext, message: Msg) -> Self::Fut {
+    fn from_message(ctx: FwContext, message: Msg, config: Self::Config) -> Self::Fut {
+        let config = config.or_default_delimiters();
+
         Box::pin(async move {
-            let args_lexer = ArgsLexer::new(
-                &message.args,
-                ArgsConfig {
-                    delimiters: smallvec::smallvec![" ".into()],
-                },
-            );
+            let args_lexer = ArgsLexer::new(&message.args, config);
 
             let args_iter = args_lexer.filter_map(|it| match it {
                 Argument::Simple(s) => Some(s),
@@ -282,7 +313,9 @@ where
             let mut pos = 0_usize;
 
             let a1 = if pos < args.len() {
-                let (v, pb) = T::parse_arg(&ctx, &message, args[pos]).await?;
+                let arg = args[pos];
+                let arg = if T::TRIM { arg.trim() } else { arg };
+                let (v, pb) = T::parse_arg(&ctx, &message, arg).await?;
 
                 if pb == PushBack::No {
                     pos += 1;
@@ -293,6 +326,8 @@ where
                 T::default_arg_value()?
             };
 
+            let _ = pos;
+
             Ok::<_, CommandError>((a1,))
         })
     }
@@ -302,16 +337,14 @@ impl<T: Arg> ArgTuple for (T,) {}
 macro_rules! arg_tuple_impl {
     ($($t:ident => $name:ident),* $(,)?) => {
         impl<$($t,)*> FromMessage for ($($t,)*) where $($t: Arg, )* {
+            type Config = ArgsConfig;
             type Fut = Pin<Box<dyn Future<Output = CommandResult<Self>> + Send>>;
 
-            fn from_message(ctx: FwContext, message: Msg) -> Self::Fut {
+            fn from_message(ctx: FwContext, message: Msg, config: Self::Config) -> Self::Fut {
+                let config = config.or_default_delimiters();
+
                 Box::pin(async move {
-                    let args_lexer = ArgsLexer::new(
-                        &message.args,
-                        ArgsConfig {
-                            delimiters: smallvec::smallvec![" ".into()],
-                        },
-                    );
+                    let args_lexer = ArgsLexer::new(&message.args, config);
 
                     let args_iter = args_lexer.filter_map(|it| match it {
                         Argument::Simple(s) => Some(s),
@@ -323,7 +356,9 @@ macro_rules! arg_tuple_impl {
 
                     $(
                         let $name = if pos < args.len() {
-                            let (v, pb) = $t::parse_arg(&ctx, &message, args[pos]).await?;
+                            let arg = args[pos];
+                            let arg = if $t::TRIM { arg.trim() } else { arg };
+                            let (v, pb) = $t::parse_arg(&ctx, &message, arg).await?;
 
                             if pb == PushBack::No {
                                 pos += 1;
@@ -334,6 +369,8 @@ macro_rules! arg_tuple_impl {
                             $t::default_arg_value()?
                         };
                     )*
+
+                    let _ = pos;
 
                     Ok::<_, CommandError>(($($name,)*))
                 })
@@ -354,8 +391,19 @@ arg_tuple_impl!(T1 => a1, T2 => a2, T3 => a3, T4 => a4, T5 => a5, T6 => a6, T7 =
 arg_tuple_impl!(T1 => a1, T2 => a2, T3 => a3, T4 => a4, T5 => a5, T6 => a6, T7 => a7, T8 => a8, T9 => a9, T10 => a10);
 arg_tuple_impl!(T1 => a1, T2 => a2, T3 => a3, T4 => a4, T5 => a5, T6 => a6, T7 => a7, T8 => a8, T9 => a9, T10 => a10, T11 => a11);
 
+#[derive(Default)]
 pub struct ArgsConfig {
-    delimiters: smallvec::SmallVec<[Cow<'static, str>; 2]>,
+    pub delimiters: smallvec::SmallVec<[Cow<'static, str>; 2]>,
+}
+
+impl ArgsConfig {
+    pub fn or_default_delimiters(mut self) -> Self {
+        if self.delimiters.is_empty() {
+            self.delimiters = smallvec::smallvec![" ".into()];
+        }
+
+        self
+    }
 }
 
 struct ArgsLexer<'a> {
@@ -420,6 +468,39 @@ impl<'a> Iterator for ArgsLexer<'a> {
         return Some(Argument::Simple(&self.args[prev_pos..]));
     }
 }
+
+impl ExtractorConfigBuilder for ArgsConfig {
+    fn delimiter(mut self, delimiter: impl Into<Cow<'static, str>>) -> Self {
+        self.delimiters.push(delimiter.into());
+        self
+    }
+
+    fn delimiters<I, C>(mut self, delimiters: I) -> Self
+    where
+        I: IntoIterator<Item = C>,
+        C: Into<Cow<'static, str>>,
+    {
+        self.delimiters.extend(delimiters.into_iter().map(Into::into));
+        self
+    }
+}
+
+#[allow(unused_variables)]
+pub trait ExtractorConfigBuilder: Sized + Default {
+    fn delimiter(self, delimiter: impl Into<Cow<'static, str>>) -> Self {
+        panic!("{} doesn't allow delimiters", std::any::type_name::<Self>())
+    }
+
+    fn delimiters<I, C>(self, delimiters: I) -> Self
+    where
+        I: IntoIterator<Item = C>,
+        C: Into<Cow<'static, str>>,
+    {
+        panic!("{} doesn't allow delimiters", std::any::type_name::<Self>())
+    }
+}
+
+impl ExtractorConfigBuilder for () {}
 
 #[cfg(test)]
 mod tests;

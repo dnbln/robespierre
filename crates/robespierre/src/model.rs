@@ -8,11 +8,11 @@ use crate::{CacheHttp, Context, HasHttp, Result};
 
 pub mod mention;
 
-pub trait IntoString: Into<String> + Send + Sync + 'static {}
-impl<T> IntoString for T where T: Into<String> + Send + Sync + 'static {}
+pub trait IntoString: Into<String> + Send + Sync {}
+impl<T> IntoString for T where T: Into<String> + Send + Sync {}
 
-pub trait AsRefContext: AsRef<Context> + Send + Sync + 'static {}
-impl<T> AsRefContext for T where T: AsRef<Context> + Send + Sync + 'static {}
+pub trait AsRefContext: AsRef<Context> + Send + Sync {}
+impl<T> AsRefContext for T where T: AsRef<Context> + Send + Sync {}
 
 // commit_to_cache implementation when there is no cache
 #[cfg(not(feature = "cache"))]
@@ -32,8 +32,8 @@ impl<T> CommitToCache for T {}
 
 #[async_trait::async_trait]
 pub trait MessageExt {
-    async fn reply(&self, ctx: &impl HasHttp, content: impl IntoString) -> Result<Message>;
-    async fn reply_ping(&self, ctx: &impl HasHttp, content: impl IntoString) -> Result<Message>;
+    async fn reply(&self, ctx: &impl HasHttp, content: impl IntoString + 'async_trait) -> Result<Message>;
+    async fn reply_ping(&self, ctx: &impl HasHttp, content: impl IntoString + 'async_trait) -> Result<Message>;
     async fn author(&self, ctx: &impl CacheHttp) -> Result<User>;
     async fn channel(&self, ctx: &impl CacheHttp) -> Result<Channel>;
     async fn server_id(&self, ctx: &impl CacheHttp) -> Result<Option<ServerId>>;
@@ -76,7 +76,8 @@ impl CreateMessage {
 
 #[async_trait::async_trait]
 impl MessageExt for Message {
-    async fn reply(&self, ctx: &impl HasHttp, content: impl IntoString) -> Result<Message> {
+    async fn reply(&self, ctx: &impl HasHttp, content: impl IntoString + 'async_trait) -> Result<Message> {
+        let content = content.into();
         self.channel
             .send_message(ctx, |m| {
                 m.content(content).reply(ReplyData {
@@ -87,7 +88,8 @@ impl MessageExt for Message {
             .await
     }
 
-    async fn reply_ping(&self, ctx: &impl HasHttp, content: impl IntoString) -> Result<Message> {
+    async fn reply_ping(&self, ctx: &impl HasHttp, content: impl IntoString + 'async_trait) -> Result<Message> {
+        let content = content.into();
         self.channel
             .send_message(ctx, |m| {
                 m.content(content).reply(ReplyData {

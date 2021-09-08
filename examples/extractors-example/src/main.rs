@@ -34,6 +34,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .command(|| Command::new("stat_user", stat_user as CommandCodeFn))
                 .command(|| Command::new("stat_channel", stat_channel as CommandCodeFn))
                 .command(|| Command::new("repeat", repeat as CommandCodeFn))
+                .command(|| Command::new("repeat_with_commas", repeat_with_commas as CommandCodeFn))
         });
     let handler = FrameworkWrap::new(fw, Handler);
     let handler = CacheWrap::new(EventHandlerWrap::new(handler));
@@ -66,7 +67,25 @@ async fn repeat(ctx: &FwContext, message: &Message, Author(author): Author, RawA
         return Ok(());
     }
 
-    message.reply(ctx, (*args).clone()).await?;
+    // args is an Arc<String>
+    message.reply(ctx, &*args).await?;
+
+    Ok(())
+}
+
+#[command]
+async fn repeat_with_commas(
+    ctx: &FwContext,
+    message: &Message,
+    Author(author): Author,
+    #[delimiter(",")]
+    Args((arg1, arg2)): Args<(String, String)>
+) -> CommandResult {
+    if author.id != "<your user id>" {
+        return Ok(());
+    }
+
+    message.reply(ctx, format!("first: {}, second: {}", arg1, arg2)).await?;
 
     Ok(())
 }

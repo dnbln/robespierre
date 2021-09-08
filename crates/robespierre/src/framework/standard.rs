@@ -1,4 +1,4 @@
-use std::{borrow::{Borrow, Cow}, fmt, future::Future, pin::Pin};
+use std::{borrow::{Borrow, Cow}, fmt, future::Future, pin::Pin, sync::Arc};
 
 #[cfg(feature = "cache")]
 use robespierre_cache::{Cache, HasCache};
@@ -95,7 +95,7 @@ impl StandardFramework {
 impl Framework for StandardFramework {
     type Context = FwContext;
 
-    async fn handle(&self, ctx: Self::Context, message: &Message) {
+    async fn handle(&self, ctx: Self::Context, message: &Arc<Message>) {
         let prefix: &str = self.config.prefix.borrow();
         let message_content = match &message.content {
             MessageContent::Content(c) => c,
@@ -372,7 +372,7 @@ impl AfterHandlerCode {
 
 pub type CommandCodeFn = for<'a> fn(
     ctx: &'a FwContext,
-    message: &'a Message,
+    message: &'a Arc<Message>,
     args: &'a str,
 ) -> Pin<Box<dyn Future<Output = CommandResult> + Send + 'a>>;
 
@@ -405,7 +405,7 @@ pub type CommandError = Box<dyn std::error::Error + Send + Sync + 'static>;
 pub type CommandResult<T = ()> = Result<T, CommandError>;
 
 impl CommandCode {
-    pub async fn invoke(&self, ctx: &FwContext, message: &Message, args: &str) -> CommandResult {
+    pub async fn invoke(&self, ctx: &FwContext, message: &Arc<Message>, args: &str) -> CommandResult {
         match self {
             CommandCode::Binary(f) => f(ctx, message, args).await,
             #[cfg(feature = "interpreter")]

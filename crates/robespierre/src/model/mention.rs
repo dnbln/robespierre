@@ -67,7 +67,7 @@ impl fmt::Display for Mention {
 /// ```rust
 /// use robespierre::model::mention::{Mention, Mentionable};
 /// use robespierre_models::id::{UserId, ChannelId};
-/// # let s = ;
+/// # let s = "A".repeat(26);
 /// let user_id: UserId = s.parse().unwrap();
 /// let channel_id: ChannelId = s.parse().unwrap();
 /// assert_eq!(user_id.mention(), Mention::User(user_id));

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use robespierre_models::channel::Message;
 
 pub mod standard;
@@ -6,5 +8,5 @@ pub mod standard;
 pub trait Framework: Send + Sync + 'static {
     type Context: 'static;
 
-    async fn handle(&self, ctx: Self::Context, message: &Message);
+    async fn handle(&self, ctx: Self::Context, message: &Arc<Message>);
 }

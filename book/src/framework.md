@@ -108,7 +108,7 @@ The signature of an event handler is defined as the `robespierre::framework::sta
 ```rust,ignore
 fn command<'a>(
     ctx: &'a FwContext, // similar to Context
-    msg: &'a Message,
+    msg: &'a Arc<Message>,
     args: &'a str,
 ) -> Pin<Box<dyn Future<Output=CommandResult> + Send + 'a>>;
 ```
@@ -119,13 +119,14 @@ To hide the nastier implementation details, the `robespierre::framework::standar
 async fn command(
     ctx: &FwContext,
     msg: &Message,
-    args: &str,
 ) -> CommandResult {
     Ok(())
 }
 ```
 
 Into a function that can be given where `robespierre::framework::standard::CommandCodeFn` is expected.
+
+For parsing arguments, see the chapter on [extractors](extractors.md), but for now we'll just ignore them.
 
 First, let's start with a `ping` command:
 ```rust

@@ -47,13 +47,88 @@ async fn repeat(ctx: &FwContext, message: &Message, Author(author): Author, RawA
         return Ok(());
     }
 
-    message.reply(ctx, &args).await?;
+    message.reply(ctx, &*args).await?;
 
     Ok(())
 }
 ```
 
 They get added to the framework in the exact same way.
+
+
+By default, the delimiter `Args` uses is ` `, but you can change it like:
+
+```rust
+#[command]
+async fn repeat_with_spaces(
+    ctx: &FwContext,
+    message: &Message,
+    Author(author): Author,
+    #[delimiter(" ")] // it's the default, can be removed
+    Args((arg1, arg2)): Args<(String, String)>
+) -> CommandResult {
+    if author.id != "<your user id>" {
+        return Ok(());
+    }
+
+    message.reply(ctx, format!("first: {}, second: {}", arg1, arg2)).await?;
+
+    Ok(())
+}
+
+#[command]
+async fn repeat_with_spaces_and_tabs(
+    ctx: &FwContext,
+    message: &Message,
+    Author(author): Author,
+    #[delimiters(" ", "\t")]
+    Args((arg1, arg2)): Args<(String, String)>
+) -> CommandResult {
+    if author.id != "<your user id>" {
+        return Ok(());
+    }
+
+    message.reply(ctx, format!("first: {}, second: {}", arg1, arg2)).await?;
+
+    Ok(())
+}
+
+#[command]
+async fn repeat_with_spaces_and_tabs_2(
+    ctx: &FwContext,
+    message: &Message,
+    Author(author): Author,
+    #[delimiter(" ")]
+    #[delimiter("\t")] // they cumulate
+    Args((arg1, arg2)): Args<(String, String)>
+) -> CommandResult {
+    if author.id != "<your user id>" {
+        return Ok(());
+    }
+
+    message.reply(ctx, format!("first: {}, second: {}", arg1, arg2)).await?;
+
+    Ok(())
+}
+
+#[command]
+async fn repeat_with_commas(
+    ctx: &FwContext,
+    message: &Message,
+    Author(author): Author,
+    #[delimiter(",")]
+    Args((arg1, arg2)): Args<(String, String)>
+) -> CommandResult {
+    if author.id != "<your user id>" {
+        return Ok(());
+    }
+
+    message.reply(ctx, format!("first: {}, second: {}", arg1, arg2)).await?;
+
+    Ok(())
+}
+```
+
 
 A full working example:
 
@@ -94,6 +169,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .command(|| Command::new("stat_user", stat_user as CommandCodeFn))
                 .command(|| Command::new("stat_channel", stat_channel as CommandCodeFn))
                 .command(|| Command::new("repeat", repeat as CommandCodeFn))
+                .command(|| Command::new("repeat_with_commas", repeat_with_commas as CommandCodeFn))
         });
     let handler = FrameworkWrap::new(fw, Handler);
     let handler = CacheWrap::new(EventHandlerWrap::new(handler));
@@ -127,10 +203,33 @@ async fn repeat(ctx: &FwContext, message: &Message, Author(author): Author, RawA
     }
 
     // args is an Arc<String>
-    message.reply(ctx, (*args).clone()).await?;
+    message.reply(ctx, &*args).await?;
 
     Ok(())
 }
+
+#[command]
+async fn repeat_with_commas(
+    ctx: &FwContext,
+    message: &Message,
+    Author(author): Author,
+    #[delimiter(",")]
+    Args((arg1, arg2)): Args<(String, String)>
+) -> CommandResult {
+    if author.id != "<your user id>" {
+        return Ok(());
+    }
+
+    message.reply(ctx, format!("first: {}, second: {}", arg1, arg2)).await?;
+
+    Ok(())
+}
+
+#[derive(Clone)]
+struct Handler;
+
+#[robespierre::async_trait]
+impl robespierre::EventHandler for Handler {}
 ```
 
 As always, you can find the example [in the repo](https://github.com/dblanovschi/robespierre/tree/main/examples/extractors-example)

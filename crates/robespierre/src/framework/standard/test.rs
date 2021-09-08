@@ -9,7 +9,7 @@ async fn command(fw_ctx: &FwContext, message: &Message, args: &str) -> CommandRe
 
 fn cmd<'a>(
     fw_ctx: &'a FwContext,
-    message: &'a Message,
+    message: &'a Arc<Message>,
     args: &'a str,
 ) -> Pin<Box<dyn Future<Output = CommandResult> + Send + 'a>> {
     Box::pin(command(fw_ctx, message, args))

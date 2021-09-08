@@ -228,8 +228,6 @@ impl Connection {
 
 impl ConnectionInternal {
     async fn hb(&mut self) -> Result {
-        tracing::debug!("sending Ping message");
-
         self.send_event(ClientToServerEvent::Ping { time: 0, data: (0,) })
             .await?;
 
@@ -272,8 +270,12 @@ impl ConnectionInternal {
     async fn send_event(&mut self, message: ClientToServerEvent) -> Result {
         use futures::sink::SinkExt;
 
+        let json = serde_json::to_string(&message)?;
+
+        tracing::debug!("[>] {}", &json);
+
         self.stream
-            .send(TungsteniteMessage::text(serde_json::to_string(&message)?))
+            .send(TungsteniteMessage::text(json))
             .await?;
 
         Ok(())
@@ -300,7 +302,7 @@ impl ConnectionInternal {
 
         match msg {
             TungsteniteMessage::Text(json) => {
-                tracing::debug!("Got json: {}", &json);
+                tracing::debug!("[<] {}", &json);
                 return Ok(serde_json::from_str(&json)?);
             }
             TungsteniteMessage::Binary(b) => tracing::debug!("Got binary: {:?}", &b),

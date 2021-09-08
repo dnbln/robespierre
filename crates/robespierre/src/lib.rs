@@ -208,11 +208,13 @@ impl<
     }
 
     async fn on_message(&self, ctx: Context, message: Message) {
+        let message = Arc::new(message);
         self.fw
             .read()
             .await
             .handle(FrameworkContext::from(ctx.clone()), &message)
             .await;
+        let message = Arc::try_unwrap(message).expect("Do not store `Arc<Message>`s while handling them in the framework. Instead, clone the inner `Message`s.");
         self.handler.on_message(ctx, message).await
     }
 
