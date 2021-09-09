@@ -25,4 +25,4 @@ See the [LICENSE-APACHE][license apache] and [LICENSE-MIT][license mit] files in
 
 [revolt]: https://revolt.chat
 
-[rust badge]: https://img.shields.io/badge/rust-1.52+-93450a.svg?style=for-the-badge&logo=rust
+[rust badge]: https://img.shields.io/badge/rust-1.53+-93450a.svg?style=for-the-badge&logo=rust
