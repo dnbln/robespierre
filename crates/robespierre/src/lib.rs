@@ -643,3 +643,7 @@ impl<T: HasHttp> CacheHttp for T {
         self.get_http()
     }
 }
+
+
+#[cfg(doctest)]
+mod booktests;

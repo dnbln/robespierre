@@ -8,7 +8,7 @@ The standard framework can help us a lot then:
 Let's take our example from where we left off in
 [the first chapter](writing-an-example-bot.md):
 
-```rust
+```rust ,no_run
 // src/main.rs
 use robespierre::CacheWrap;
 use robespierre::EventHandlerWrap;
@@ -64,7 +64,7 @@ impl robespierre::EventHandler for Handler {
 
 Now, let's get rid of the `on_ready` and `on_message` functions:
 
-```rust
+```rust ,no_run
 // src/main.rs
 # use robespierre::CacheWrap;
 # use robespierre::EventHandlerWrap;
@@ -105,7 +105,7 @@ impl robespierre::EventHandler for Handler {}
 ```
 
 The signature of an event handler is defined as the `robespierre::framework::standard::CommandCodeFn` type, and looks like this:
-```rust,ignore
+```rust ,ignore
 fn command<'a>(
     ctx: &'a FwContext, // similar to Context
     msg: &'a Arc<Message>,
@@ -114,7 +114,7 @@ fn command<'a>(
 ```
 
 To hide the nastier implementation details, the `robespierre::framework::standard::macros::command` macro helps a little, and turns this:
-```rust,ignore
+```rust ,ignore
 #[command]
 async fn command(
     ctx: &FwContext,
@@ -129,7 +129,7 @@ Into a function that can be given where `robespierre::framework::standard::Comma
 For parsing arguments, see the chapter on [extractors](extractors.md), but for now we'll just ignore them.
 
 First, let's start with a `ping` command:
-```rust
+```rust ,no_run
 // src/main.rs
 # use robespierre::CacheWrap;
 # use robespierre::EventHandlerWrap;
@@ -178,7 +178,7 @@ async fn ping(ctx: &FwContext, msg: &Message) -> CommandResult {
 
 Now, let's go build a `StandardFramework`:
 
-```rust
+```rust ,no_run
 // src/main.rs
 # use robespierre::CacheWrap;
 # use robespierre::EventHandlerWrap;
@@ -235,7 +235,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 And now let's also use it:
 
-```rust
+```rust ,no_run
 // src/main.rs
 # use robespierre::CacheWrap;
 # use robespierre::EventHandlerWrap;

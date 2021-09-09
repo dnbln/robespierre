@@ -14,7 +14,13 @@ Here's an example of a stat user command, that just
 formats the user with the debug formatter and replies
 with the result:
 
-```rust
+```rust ,no_run
+# use robespierre::framework::standard::{FwContext, CommandResult, macros::command};
+# use robespierre::framework::standard::extractors::{Args, Author, RawArgs, Rest};
+# use robespierre::model::MessageExt;
+# use robespierre_models::channel::Message;
+# use robespierre_models::user::User;
+
 #[command]
 async fn stat_user(ctx: &FwContext, message: &Message,
     Args((user,)): Args<(User,)> // parses a single argument as an UserId, and fetches the user with that id
@@ -26,7 +32,12 @@ async fn stat_user(ctx: &FwContext, message: &Message,
 ```
 
 Or a stat channel command:
-```rust
+```rust ,no_run
+# use robespierre::framework::standard::{FwContext, CommandResult, macros::command};
+# use robespierre::framework::standard::extractors::{Args, Author, RawArgs, Rest};
+# use robespierre::model::MessageExt;
+# use robespierre_models::channel::{Message, Channel};
+
 #[command]
 async fn stat_channel(ctx: &FwContext, message: &Message,
     Args((channel,)): Args<(Channel,)> // parses a single argument as a ChannelId, and fetches the channel with that id
@@ -40,7 +51,12 @@ async fn stat_channel(ctx: &FwContext, message: &Message,
 Or a "repeat" command, which just echoes back the arguments
 (be careful who you let to run this command):
 
-```rust
+```rust ,no_run
+# use robespierre::framework::standard::{FwContext, CommandResult, macros::command};
+# use robespierre::framework::standard::extractors::{Args, Author, RawArgs, Rest};
+# use robespierre::model::MessageExt;
+# use robespierre_models::channel::Message;
+
 #[command]
 async fn repeat(ctx: &FwContext, message: &Message, Author(author): Author, RawArgs(args): RawArgs) -> CommandResult {
     if author.id != "<your user id>" {
@@ -58,7 +74,12 @@ They get added to the framework in the exact same way.
 
 By default, the delimiter `Args` uses is ` `, but you can change it like:
 
-```rust
+```rust ,no_run
+# use robespierre::framework::standard::{FwContext, CommandResult, macros::command};
+# use robespierre::framework::standard::extractors::{Args, Author, RawArgs, Rest};
+# use robespierre::model::MessageExt;
+# use robespierre_models::channel::Message;
+
 #[command]
 async fn repeat_with_spaces(
     ctx: &FwContext,
@@ -141,7 +162,7 @@ There are 2 kinds of special argument types (omitting `.to_string()` calls for s
 Means "try to parse the argument as T, and if failed, pass None as arg, and continue trying to parse as if there was no arg here".
 
 E.g. a type like:
-```rust
+```rust ,ignore
 # fn f(
 #[delimiter(",")]
 args: Args<(String, Option<UserId>, String)>,
@@ -156,7 +177,7 @@ While if given `aaa, <@AAAAAAAAAAAAAAAAAAAAAAAAAA>, bbb`, it will result `Args((
 It means "use all the remaining text" to parse `T`.
 
 E.g. a type like:
-```rust
+```rust ,ignore
 # fn f(
 #[delimiter(",")]
 args: Args<(String, Rest<String>)>
@@ -174,7 +195,7 @@ Note: No argument should ever come after a `Rest<T>`.
 
 A full working example:
 
-```rust
+```rust ,no_run
 use robespierre::CacheWrap;
 use robespierre::EventHandlerWrap;
 use robespierre::Context;

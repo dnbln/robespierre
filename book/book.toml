@@ -5,6 +5,9 @@ multilingual = false
 src = "src"
 title = "The Robespierre book"
 
+[rust]
+edition = "2018"
+
 [preprocessor.mdbook-snips]
 command = "mdbook-snips"
 for_imports = false

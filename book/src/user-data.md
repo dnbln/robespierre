@@ -1,7 +1,7 @@
 # User data
 
 Let's start with the code from [the previous chapter](framework.md):
-```rust
+```rust,no_run
 // src/main.rs
 use robespierre::CacheWrap;
 use robespierre::EventHandlerWrap;
@@ -60,7 +60,7 @@ impl robespierre::EventHandler for Handler {}
 
 Specifically this line is of interest:
 
-```rust
+```rust,no_run
 // src/main.rs
 # use robespierre::CacheWrap;
 # use robespierre::EventHandlerWrap;
@@ -125,7 +125,7 @@ For performance, instead of using an
 
 First, we'll start with a definition of a typemap key:
 
-```rust
+```rust,no_run
 // src/main.rs
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
@@ -192,7 +192,7 @@ impl robespierre::typemap::Key for CommandCounterKey {
 
 And add it to the map:
 
-```rust
+```rust,no_run
 // src/main.rs
 # use std::sync::Arc;
 # use std::sync::atomic::AtomicUsize;
@@ -261,7 +261,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 And when we get a command we have to increment it:
 
-```rust
+```rust ,no_run
 // src/main.rs
 # use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -336,7 +336,7 @@ async fn ping(ctx: &FwContext, msg: &Message) -> CommandResult {
 
 And finally, let's add another command to display the counter:
 
-```rust
+```rust ,no_run
 // src/main.rs
 # use std::sync::Arc;
 # use std::sync::atomic::{AtomicUsize, Ordering};

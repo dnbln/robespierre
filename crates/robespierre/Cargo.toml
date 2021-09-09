@@ -34,3 +34,7 @@ smallvec = "1"
 tokio = { version = "1", features = ["full"] }
 typemap = "0.3"
 futures = "0.3"
+
+[dev-dependencies]
+doc-comment = "0.3"
+tracing-subscriber = "0.2"
