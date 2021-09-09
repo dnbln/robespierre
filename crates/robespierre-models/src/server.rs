@@ -168,6 +168,40 @@ pub struct SystemMessagesChannels {
 #[serde(transparent)]
 pub struct RolesObject(HashMap<RoleId, Role>);
 
+impl RolesObject {
+    pub fn iter(&self) -> RolesIter {
+        RolesIter(self.0.iter())
+    }
+
+    pub fn get(&self, id: &RoleId) -> Option<&Role> {
+        self.0.get(id)
+    }
+
+    pub fn patch_role(&mut self, role_id: &RoleId, patch: PartialRole, remove: Option<RoleField>) {
+        if let Some(refr) = self.0.get_mut(role_id) {
+            patch.patch(refr);
+
+            if let Some(remove) = remove {
+                remove.remove_patch(refr);
+            }
+        }
+    }
+
+    pub fn remove(&mut self, id: &RoleId) {
+        self.0.remove(id);
+    }
+}
+
+pub struct RolesIter<'a>(std::collections::hash_map::Iter<'a, RoleId, Role>);
+
+impl<'a> Iterator for RolesIter<'a> {
+    type Item = (&'a RoleId, &'a Role);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+
 /// A role.
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Role {

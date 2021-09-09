@@ -18,6 +18,7 @@ use robespierre_http::Http;
 use robespierre_models::autumn::AutumnTag;
 use robespierre_models::channel::{Channel, Message, MessageContent, ReplyData};
 use robespierre_models::id::{ChannelId, ServerId, UserId};
+use robespierre_models::server::ServerPermissions;
 use robespierre_models::user::User;
 
 struct CommandCounter;
@@ -55,6 +56,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .command(|| Command::new("repeat3", repeat3 as CommandCodeFn))
                 .command(|| Command::new("stat_user", stat_user as CommandCodeFn))
                 .command(|| Command::new("stat_channel", stat_channel as CommandCodeFn))
+                .command(|| Command::new("ban_perm_test", ban_perm_test as CommandCodeFn))
         })
         .normal_message(normal_message as NormalMessageHandlerCodeFn)
         .after(after_handler as AfterHandlerCodeFn);
@@ -155,6 +157,26 @@ async fn repeat3(
             format!("first: {}, user: {:?}\n, second: {}", s1, user, s2),
         )
         .await?;
+
+    Ok(())
+}
+
+#[command]
+async fn ban_perm_test(
+    ctx: &FwContext,
+    msg: &Message,
+    AuthorMember(member): AuthorMember,
+) -> CommandResult {
+    // let channel = msg.channel(ctx).await?;
+    let server = msg.server(ctx).await?.unwrap();
+
+    let result = robespierre_models::permissions_utils::member_has_permissions(
+        &member,
+        ServerPermissions::BAN_MEMBERS,
+        &server,
+    );
+
+    msg.reply(ctx, format!("{}", result)).await?;
 
     Ok(())
 }

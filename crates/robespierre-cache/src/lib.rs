@@ -14,7 +14,7 @@ use robespierre_models::{
     events::ServerToClientEvent,
     id::{ChannelId, MemberId, MessageId, RoleId, ServerId, UserId},
     server::{
-        Member, MemberField, PartialMember, PartialRole, PartialServer, Role, RoleField, Server,
+        Member, MemberField, PartialMember, PartialRole, PartialServer, RoleField, Server,
         ServerField,
     },
     user::{PartialUser, User, UserField},
@@ -31,7 +31,7 @@ pub struct Cache {
 
     users: RwLock<HashMap<UserId, User>>,
     servers: RwLock<HashMap<ServerId, Server>>,
-    roles: RwLock<HashMap<RoleId, Role>>,
+    roles: RwLock<HashMap<RoleId, ServerId>>,
     members: RwLock<HashMap<MemberId, Member>>,
     channels: RwLock<HashMap<ChannelId, Channel>>,
     messages: RwLock<HashMap<ChannelId, HashMap<MessageId, Message>>>,
@@ -111,7 +111,28 @@ impl Cache {
     }
 }
 
-cache_field! {ServerId, Server, get_server, get_server_data, servers, commit_server, id}
+impl Cache {
+    pub async fn get_server(&self, id: ServerId) -> Option<Server> {
+        self.get_server_data(id, Clone::clone).await
+    }
+    pub async fn get_server_data<F, T>(&self, id: ServerId, f: F) -> Option<T>
+    where
+        F: FnOnce(&Server) -> T,
+    {
+        self.servers.read().await.get(&id).map(f)
+    }
+    pub async fn commit_server(&self, v: &Server) {
+        self.servers.write().await.insert(v.id, v.clone());
+
+        if let Some(ref roles) = v.roles {
+            let mut roles_write_lock = self.roles.write().await;
+
+            for (role_id, _role) in roles.iter() {
+                roles_write_lock.insert(*role_id, v.id);
+            }
+        }
+    }
+}
 
 impl Cache {
     pub async fn patch_server(
@@ -132,27 +153,33 @@ impl Cache {
     }
 }
 
-cache_field! {RoleId, Role, get_role, get_role_data, roles}
-
 impl Cache {
-    pub async fn commit_role(&self, role_id: RoleId, role: &Role) {
-        let mut lock = self.roles.write().await;
-        lock.insert(role_id, role.clone());
+    pub async fn get_server_of_role(&self, id: RoleId) -> Option<ServerId> {
+        self.roles.read().await.get(&id).copied()
     }
 
     pub async fn patch_role(
         &self,
+        server_id: ServerId,
         role_id: RoleId,
         patch: impl FnOnce() -> PartialRole,
         remove: Option<RoleField>,
     ) {
-        let mut lock = self.roles.write().await;
-        if let Some(role) = lock.get_mut(&role_id) {
-            let patch = patch();
+        let mut lock = self.servers.write().await;
+        if let Some(server) = lock.get_mut(&server_id) {
+            if let Some(ref mut roles_obj) = server.roles {
+                let patch = patch();
+                
+                roles_obj.patch_role(&role_id, patch, remove);
+            }
+        }
+    }
 
-            patch.patch(role);
-            if let Some(remove) = remove {
-                remove.remove_patch(role);
+    pub async fn delete_role(&self, id: ServerId, role: RoleId) {
+        let mut lock = self.servers.write().await;
+        if let Some(server) = lock.get_mut(&id) {
+            if let Some(ref mut roles_obj) = server.roles {
+                roles_obj.remove(&role);
             }
         }
     }
@@ -347,13 +374,6 @@ impl CommitToCache for Message {
 }
 
 #[async_trait]
-impl<'a> CommitToCache for (RoleId, &'a Role) {
-    async fn __commit_to_cache(&self, cache: &Cache) {
-        cache.commit_role(self.0, self.1).await
-    }
-}
-
-#[async_trait]
 impl CommitToCache for ServerToClientEvent {
     async fn __commit_to_cache(&self, cache: &Cache) {
         #[allow(unused_variables)]
@@ -382,7 +402,9 @@ impl CommitToCache for ServerToClientEvent {
                 cache.patch_message(*channel, *id, || data.clone()).await;
             }
             ServerToClientEvent::MessageDelete { id, channel } => {}
-            ServerToClientEvent::ChannelCreate { channel } => {}
+            ServerToClientEvent::ChannelCreate { channel } => {
+                cache.commit_channel(channel).await;
+            }
             ServerToClientEvent::ChannelUpdate { id, data, clear } => {
                 cache.patch_channel(*id, || data.clone(), *clear).await;
             }
@@ -410,8 +432,12 @@ impl CommitToCache for ServerToClientEvent {
                 role_id,
                 data,
                 clear,
-            } => {}
-            ServerToClientEvent::ServerRoleDelete { id, role_id } => {}
+            } => {
+                cache.patch_role(*id, *role_id, || data.clone(), *clear).await;
+            }
+            ServerToClientEvent::ServerRoleDelete { id, role_id } => {
+                cache.delete_role(*id, *role_id).await;
+            }
             ServerToClientEvent::UserUpdate { id, data, clear } => {
                 cache.patch_user(*id, || data.clone(), *clear).await;
             }
