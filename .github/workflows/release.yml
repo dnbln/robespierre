@@ -1,0 +1,25 @@
+name: release
+on:
+  push:
+    branches:
+      - release
+
+env:
+  CLICOLOR_FORCE: 1
+jobs:
+  rust-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            override: true
+
+      - name: Publish
+        uses: katyo/publish-crates@v1
+        with:
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
