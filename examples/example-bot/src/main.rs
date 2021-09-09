@@ -3,7 +3,7 @@ use std::pin::Pin;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
-use robespierre::framework::standard::extractors::{Args, AuthorMember};
+use robespierre::framework::standard::extractors::{Args, AuthorMember, Rest};
 use robespierre::framework::standard::{
     macros::command, AfterHandlerCodeFn, Command, CommandCodeFn, CommandResult, FwContext,
     NormalMessageHandlerCodeFn, StandardFramework,
@@ -52,6 +52,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .command(|| Command::new("ping", ping as CommandCodeFn).alias("pong"))
                 .command(|| Command::new("repeat", repeat as CommandCodeFn))
                 .command(|| Command::new("repeat2", repeat2 as CommandCodeFn))
+                .command(|| Command::new("repeat3", repeat3 as CommandCodeFn))
                 .command(|| Command::new("stat_user", stat_user as CommandCodeFn))
                 .command(|| Command::new("stat_channel", stat_channel as CommandCodeFn))
         })
@@ -117,6 +118,19 @@ async fn repeat2(ctx: &FwContext, message: &Message, #[delimiter(",")] Args((s1,
     println!("{:?}", &member);
 
     message.reply(ctx, format!("first: {}, second: {}", s1, s2)).await?;
+
+    Ok(())
+}
+
+#[command]
+async fn repeat3(ctx: &FwContext, message: &Message, #[delimiter(",")] Args((s1, user, Rest(s2))): Args<(String, Option<UserId>, Rest<String>)>) -> CommandResult {
+    if message.author != "01FE638VK54XZ6FEK167D4VC9N" {
+        return Ok(())
+    }
+
+    println!("{:?}", &user);
+
+    message.reply(ctx, format!("first: {}, user: {:?}\n, second: {}", s1, user, s2)).await?;
 
     Ok(())
 }

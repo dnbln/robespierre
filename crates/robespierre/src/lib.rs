@@ -595,7 +595,7 @@ impl robespierre_events::Context for Context {
 #[cfg(feature = "cache")]
 impl HasCache for Context {
     fn get_cache(&self) -> Option<&Cache> {
-        self.cache.as_ref().map(|it| &**it)
+        self.cache.as_deref()
     }
 }
 

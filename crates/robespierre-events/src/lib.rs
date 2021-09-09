@@ -131,7 +131,7 @@ impl Connection {
             TypingManagerTick,
         }
 
-        let mut typing_session_manager = typing::TypingSessionManager::new();
+        let mut typing_session_manager = typing::TypingSessionManager::default();
 
         loop {
             // Event::FromServer = we got an event from the server, which we should pass to the handler
@@ -234,7 +234,7 @@ impl ConnectionInternal {
         Ok(())
     }
 
-    async fn authenticate<'a>(&mut self, auth: Authentication<'a>) -> Result {
+    async fn authenticate(&mut self, auth: Authentication<'_>) -> Result {
         tracing::debug!("Authenticating");
         self.send_event(match &auth {
             Authentication::Bot { token } => ClientToServerEvent::AuthenticateBot {
@@ -244,7 +244,7 @@ impl ConnectionInternal {
                 user_id,
                 session_token,
             } => ClientToServerEvent::Authenticate {
-                user_id: user_id.clone(),
+                user_id: *user_id,
                 session_token: session_token.to_string(),
             },
         })

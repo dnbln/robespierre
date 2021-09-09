@@ -39,14 +39,16 @@ pub struct TypingSessionManager {
     interval: tokio::time::Interval,
 }
 
-impl TypingSessionManager {
-    pub fn new() -> Self {
+impl Default for TypingSessionManager {
+    fn default() -> Self {
         Self {
             sessions: HashMap::new(),
             interval: tokio::time::interval(Duration::new(2, 500_000_000)),
         }
     }
+}
 
+impl TypingSessionManager {
     pub fn start_typing(&mut self, channel: ChannelId) {
         *self.sessions.entry(channel).or_insert(0) += 1;
     }
@@ -72,7 +74,7 @@ impl TypingSessionManager {
         ChannelIdIter(self.sessions.keys())
     }
 
-    pub fn tick<'a>(&'a mut self) -> impl Future<Output = Instant> + 'a {
+    pub fn tick(&mut self) -> impl Future<Output = Instant> + '_ {
         self.interval.tick()
     }
 }

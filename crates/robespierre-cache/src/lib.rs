@@ -235,7 +235,7 @@ impl Cache {
         }
 
         let mut queue_lock = self.message_queue.write().await;
-        let deque = queue_lock.entry(message.channel).or_insert(VecDeque::new());
+        let deque = queue_lock.entry(message.channel).or_insert_with(VecDeque::new);
 
         match self.messages.write().await.entry(message.channel) {
             Entry::Occupied(mut m) => {

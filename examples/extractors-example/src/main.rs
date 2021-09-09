@@ -5,7 +5,7 @@ use robespierre::Authentication;
 use robespierre::model::MessageExt;
 use robespierre::framework::standard::{FwContext, CommandResult, macros::command};
 use robespierre::framework::standard::{StandardFramework, Command, CommandCodeFn};
-use robespierre::framework::standard::extractors::{Args, Author, RawArgs};
+use robespierre::framework::standard::extractors::{Args, Author, RawArgs, Rest};
 use robespierre::FrameworkWrap;
 use robespierre_cache::CacheConfig;
 use robespierre_events::Connection;
@@ -35,6 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .command(|| Command::new("stat_channel", stat_channel as CommandCodeFn))
                 .command(|| Command::new("repeat", repeat as CommandCodeFn))
                 .command(|| Command::new("repeat_with_commas", repeat_with_commas as CommandCodeFn))
+                .command(|| Command::new("repeat_with_commas_using_rest", repeat_with_commas_using_rest as CommandCodeFn))
         });
     let handler = FrameworkWrap::new(fw, Handler);
     let handler = CacheWrap::new(EventHandlerWrap::new(handler));
@@ -80,6 +81,23 @@ async fn repeat_with_commas(
     Author(author): Author,
     #[delimiter(",")]
     Args((arg1, arg2)): Args<(String, String)>
+) -> CommandResult {
+    if author.id != "<your user id>" {
+        return Ok(());
+    }
+
+    message.reply(ctx, format!("first: {}, second: {}", arg1, arg2)).await?;
+
+    Ok(())
+}
+
+#[command]
+async fn repeat_with_commas_using_rest(
+    ctx: &FwContext,
+    message: &Message,
+    Author(author): Author,
+    #[delimiter(",")]
+    Args((arg1, Rest(arg2))): Args<(String, Rest<String>)>
 ) -> CommandResult {
     if author.id != "<your user id>" {
         return Ok(());

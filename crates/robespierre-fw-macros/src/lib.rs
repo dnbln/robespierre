@@ -5,6 +5,7 @@ use syn::{
     Type,
 };
 
+#[allow(clippy::borrowed_box)]
 struct ExtraArgs<'a>(&'a [&'a Box<Type>], &'a [Vec<Attribute>]);
 
 impl<'a> ToTokens for ExtraArgs<'a> {

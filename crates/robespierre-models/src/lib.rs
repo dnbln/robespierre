@@ -1,3 +1,5 @@
+#![allow(clippy::large_enum_variant)]
+
 pub mod attachments;
 pub mod autumn;
 pub mod channel;

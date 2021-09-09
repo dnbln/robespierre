@@ -1,8 +1,18 @@
-use std::{borrow::{Borrow, Cow}, fmt, future::Future, pin::Pin, sync::Arc};
+use std::{
+    borrow::{Borrow, Cow},
+    collections::HashSet,
+    fmt,
+    future::Future,
+    pin::Pin,
+    sync::Arc,
+};
 
 #[cfg(feature = "cache")]
 use robespierre_cache::{Cache, HasCache};
-use robespierre_models::channel::{Message, MessageContent};
+use robespierre_models::{
+    channel::{Message, MessageContent},
+    id::UserId,
+};
 
 use crate::{Context, HasHttp, UserData};
 
@@ -18,6 +28,7 @@ pub mod extractors;
 #[derive(Default)]
 pub struct StdFwConfig {
     prefix: Cow<'static, str>,
+    owners: HashSet<UserId>,
 }
 
 impl StdFwConfig {
@@ -26,6 +37,10 @@ impl StdFwConfig {
             prefix: prefix.into(),
             ..self
         }
+    }
+
+    pub fn owners(self, owners: HashSet<UserId>) -> Self {
+        Self { owners, ..self }
     }
 }
 
@@ -89,6 +104,23 @@ impl StandardFramework {
         self.root_group.subgroups.push(group);
         self
     }
+
+    async fn invoke_unknown_command(&self, ctx: &FwContext, message: &Arc<Message>) {
+        if let Some(code) = self.unknown_command.as_ref() {
+            code.invoke(ctx, message).await;
+        }
+    }
+
+    async fn invoke_after<'a>(
+        &'a self,
+        ctx: &'a FwContext,
+        message: &'a Arc<Message>,
+        result: CommandResult,
+    ) {
+        if let Some(code) = self.after.as_ref() {
+            code.invoke(ctx, message, result).await;
+        }
+    }
 }
 
 #[async_trait::async_trait]
@@ -106,29 +138,21 @@ impl Framework for StandardFramework {
 
             match command {
                 Some((cmd, args)) => {
-                    let result = cmd.code.invoke(&ctx, &message, args).await;
+                    if cmd.owners_only && !self.config.owners.contains(&message.author) {
+                        self.invoke_unknown_command(&ctx, message).await;
+                        return;
+                    }
 
-                    match self.after.as_ref() {
-                        Some(code) => {
-                            code.invoke(&ctx, &message, result).await;
-                        }
-                        None => {}
-                    }
+                    let result = cmd.code.invoke(&ctx, message, args).await;
+
+                    self.invoke_after(&ctx, message, result).await;
                 }
-                None => match self.unknown_command.as_ref() {
-                    Some(code) => {
-                        code.invoke(&ctx, &message).await;
-                    }
-                    None => {}
-                },
-            }
-        } else {
-            match self.normal_message.as_ref() {
-                Some(code) => {
-                    code.invoke(&ctx, &message).await;
+                None => {
+                    self.invoke_unknown_command(&ctx, message).await;
                 }
-                None => {}
             }
+        } else if let Some(code) = self.normal_message.as_ref() {
+            code.invoke(&ctx, message).await;
         }
     }
 }
@@ -247,47 +271,31 @@ impl Group {
 #[derive(Debug)]
 pub struct Command {
     name: Cow<'static, str>,
-    description: Option<Cow<'static, str>>,
-    usage: Option<Cow<'static, str>>,
-    examples: smallvec::SmallVec<[Cow<'static, str>; 4]>,
     aliases: smallvec::SmallVec<[Cow<'static, str>; 4]>,
     code: CommandCode,
+    owners_only: bool,
 }
 
 impl Command {
     pub fn new(name: impl Into<Cow<'static, str>>, code: impl Into<CommandCode>) -> Self {
         Self {
             name: name.into(),
-            description: None,
-            usage: None,
-            examples: smallvec::SmallVec::default(),
             aliases: smallvec::SmallVec::default(),
             code: code.into(),
+            owners_only: false,
         }
-    }
-
-    pub fn description(self, description: impl Into<Cow<'static, str>>) -> Self {
-        Self {
-            description: Some(description.into()),
-            ..self
-        }
-    }
-
-    pub fn usage(self, usage: impl Into<Cow<'static, str>>) -> Self {
-        Self {
-            usage: Some(usage.into()),
-            ..self
-        }
-    }
-
-    pub fn example(mut self, example: impl Into<Cow<'static, str>>) -> Self {
-        self.examples.push(example.into());
-        self
     }
 
     pub fn alias(mut self, alias: impl Into<Cow<'static, str>>) -> Self {
         self.aliases.push(alias.into());
         self
+    }
+
+    pub fn owners_only(self, owners_only: impl Into<bool>) -> Self {
+        Self {
+            owners_only: owners_only.into(),
+            ..self
+        }
     }
 }
 
@@ -351,21 +359,16 @@ impl From<AfterHandlerCodeFn> for AfterHandlerCode {
 }
 
 impl AfterHandlerCode {
-    pub fn invoke<'a>(
+    pub async fn invoke<'a>(
         &'a self,
         ctx: &'a FwContext,
         message: &'a Message,
         result: CommandResult,
-    ) -> impl Future<Output = ()> + 'a {
-        async move {
-            match self {
-                AfterHandlerCode::Binary(f) => {
-                    let f = *f;
-                    f(ctx, message, result).await
-                }
-                #[cfg(feature = "interpreter")]
-                AfterHandlerCode::Interpreted(code) => todo!(),
-            }
+    ) {
+        match self {
+            AfterHandlerCode::Binary(f) => f(ctx, message, result).await,
+            #[cfg(feature = "interpreter")]
+            AfterHandlerCode::Interpreted(code) => todo!(),
         }
     }
 }
@@ -405,7 +408,12 @@ pub type CommandError = Box<dyn std::error::Error + Send + Sync + 'static>;
 pub type CommandResult<T = ()> = Result<T, CommandError>;
 
 impl CommandCode {
-    pub async fn invoke(&self, ctx: &FwContext, message: &Arc<Message>, args: &str) -> CommandResult {
+    pub async fn invoke(
+        &self,
+        ctx: &FwContext,
+        message: &Arc<Message>,
+        args: &str,
+    ) -> CommandResult {
         match self {
             CommandCode::Binary(f) => f(ctx, message, args).await,
             #[cfg(feature = "interpreter")]
@@ -414,13 +422,13 @@ impl CommandCode {
     }
 }
 
+pub type UnknownCommandHandlerCodeFn = for<'a> fn(
+    ctx: &'a FwContext,
+    message: &'a Message,
+) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
+
 pub enum UnknownCommandHandlerCode {
-    Binary(
-        for<'a> fn(
-            ctx: &'a FwContext,
-            message: &'a Message,
-        ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>>,
-    ),
+    Binary(UnknownCommandHandlerCodeFn),
     #[cfg(feature = "interpreter")]
     Interpreted(String),
 }

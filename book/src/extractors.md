@@ -135,6 +135,43 @@ but for `#[delimiters()]`, they have to all be of the same type.
 If you need values of multiple types, then you can use multiple `#[delimiters]` attributes.
 
 
+## Special types
+There are 2 kinds of special argument types (omitting `.to_string()` calls for simplicity):
+### `Option<T> where T: Arg`
+Means "try to parse the argument as T, and if failed, pass None as arg, and continue trying to parse as if there was no arg here".
+
+E.g. a type like:
+```rust
+# fn f(
+#[delimiter(",")]
+args: Args<(String, Option<UserId>, String)>,
+# )->{}
+```
+
+If given `aaa, bbb`, it will result `Args(("aaa", None, "bbb"))`.
+
+While if given `aaa, <@AAAAAAAAAAAAAAAAAAAAAAAAAA>, bbb`, it will result `Args(("aaa", Some(...), "bbb"))`.
+
+### `Rest<T> where T: Arg`
+It means "use all the remaining text" to parse `T`.
+
+E.g. a type like:
+```rust
+# fn f(
+#[delimiter(",")]
+args: Args<(String, Rest<String>)>
+# )->{}
+```
+
+Given:
+
+```text
+"aaa, bbb" => Args(("aaa", Rest("bbb")))
+"aaa, bbb, ccc" => Args(("aaa", Rest("bbb, ccc")))
+```
+
+Note: No argument should ever come after a `Rest<T>`.
+
 A full working example:
 
 ```rust
@@ -145,7 +182,7 @@ use robespierre::Authentication;
 use robespierre::model::MessageExt;
 use robespierre::framework::standard::{FwContext, CommandResult, macros::command};
 use robespierre::framework::standard::{StandardFramework, Command, CommandCodeFn};
-use robespierre::framework::standard::extractors::{Args, Author, RawArgs};
+use robespierre::framework::standard::extractors::{Args, Author, RawArgs, Rest};
 use robespierre::FrameworkWrap;
 use robespierre_cache::CacheConfig;
 use robespierre_events::Connection;
@@ -175,6 +212,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .command(|| Command::new("stat_channel", stat_channel as CommandCodeFn))
                 .command(|| Command::new("repeat", repeat as CommandCodeFn))
                 .command(|| Command::new("repeat_with_commas", repeat_with_commas as CommandCodeFn))
+                .command(|| Command::new("repeat_with_commas_using_rest", repeat_with_commas_using_rest as CommandCodeFn))
         });
     let handler = FrameworkWrap::new(fw, Handler);
     let handler = CacheWrap::new(EventHandlerWrap::new(handler));
@@ -220,6 +258,23 @@ async fn repeat_with_commas(
     Author(author): Author,
     #[delimiter(",")]
     Args((arg1, arg2)): Args<(String, String)>
+) -> CommandResult {
+    if author.id != "<your user id>" {
+        return Ok(());
+    }
+
+    message.reply(ctx, format!("first: {}, second: {}", arg1, arg2)).await?;
+
+    Ok(())
+}
+
+#[command]
+async fn repeat_with_commas_using_rest(
+    ctx: &FwContext,
+    message: &Message,
+    Author(author): Author,
+    #[delimiter(",")]
+    Args((arg1, Rest(arg2))): Args<(String, Rest<String>)>
 ) -> CommandResult {
     if author.id != "<your user id>" {
         return Ok(());

@@ -1,4 +1,9 @@
-use std::{cmp::Ordering, convert::{Infallible, TryFrom, TryInto}, fmt::Display, str::FromStr};
+use std::{
+    cmp::Ordering,
+    convert::{Infallible, TryFrom, TryInto},
+    fmt::Display,
+    str::FromStr,
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -8,7 +13,8 @@ use serde::{Deserialize, Serialize};
 pub struct IdString([u8; 26]);
 
 impl IdString {
-    fn check(s: &str) -> Result<(), IdStringDeserializeError> {
+    /// Checks whether the string is a valid Id
+    pub fn check(s: &str) -> Result<(), IdStringDeserializeError> {
         if s.len() != 26 {
             return Err(IdStringDeserializeError::IncorrectLength {
                 expected: 26,
@@ -16,23 +22,30 @@ impl IdString {
             });
         }
 
-        match s.find(|c: char| !('A'..='Z').contains(&c) && !('0'..='9').contains(&c)) {
-            Some(pos) => {
-                let c = s.chars().nth(pos).unwrap();
+        if let Some(pos) = s.find(|c: char| !('A'..='Z').contains(&c) && !('0'..='9').contains(&c))
+        {
+            let c = s.chars().nth(pos).unwrap();
 
-                return Err(IdStringDeserializeError::InvalidCharacter { c, pos });
-            }
-
-            None => {}
+            return Err(IdStringDeserializeError::InvalidCharacter { c, pos });
         }
 
         Ok(())
     }
 
+    /// Creates a new [`IdString`] wihtout checking that
+    /// the contents are valid id characters, and the whole string
+    /// is of the right length.
+    /// # Safety
+    /// s should have passed [Self::check]
     pub unsafe fn from_str_unchecked(s: &str) -> Self {
         Self(s.as_bytes().try_into().unwrap())
     }
 
+    /// Creates a new [`IdString`] wihtout checking that
+    /// the contents are valid id characters, and the whole string
+    /// is of the right length.
+    /// # Safety
+    /// s should have passed [Self::check]
     pub unsafe fn from_string_unchecked(s: String) -> Self {
         Self(s.as_bytes().try_into().unwrap())
     }
@@ -95,29 +108,17 @@ impl PartialEq<String> for IdString {
     fn eq(&self, other: &String) -> bool {
         self.as_ref().eq(other)
     }
-
-    fn ne(&self, other: &String) -> bool {
-        self.as_ref().ne(other)
-    }
 }
 
 impl PartialEq<str> for IdString {
     fn eq(&self, other: &str) -> bool {
         self.as_ref().eq(other)
     }
-
-    fn ne(&self, other: &str) -> bool {
-        self.as_ref().ne(other)
-    }
 }
 
 impl<'a> PartialEq<&'a str> for IdString {
     fn eq(&self, other: &&'a str) -> bool {
         self.as_ref().eq(*other)
-    }
-
-    fn ne(&self, other: &&'a str) -> bool {
-        self.as_ref().ne(*other)
     }
 }
 
@@ -191,44 +192,32 @@ macro_rules! id_impl {
             fn eq(&self, other: &String) -> bool {
                 self.as_ref().eq(other)
             }
-        
-            fn ne(&self, other: &String) -> bool {
-                self.as_ref().ne(other)
-            }
         }
-        
+
         impl PartialEq<str> for $name {
             fn eq(&self, other: &str) -> bool {
                 self.as_ref().eq(other)
             }
-        
-            fn ne(&self, other: &str) -> bool {
-                self.as_ref().ne(other)
-            }
         }
-        
+
         impl<'a> PartialEq<&'a str> for $name {
             fn eq(&self, other: &&'a str) -> bool {
                 self.as_ref().eq(*other)
             }
-        
-            fn ne(&self, other: &&'a str) -> bool {
-                self.as_ref().ne(*other)
-            }
         }
-        
+
         impl PartialOrd<String> for $name {
             fn partial_cmp(&self, other: &String) -> Option<Ordering> {
                 Some(self.as_ref().cmp(other))
             }
         }
-        
+
         impl PartialOrd<str> for $name {
             fn partial_cmp(&self, other: &str) -> Option<Ordering> {
                 Some(self.as_ref().cmp(other))
             }
         }
-        
+
         impl<'a> PartialOrd<&'a str> for $name {
             fn partial_cmp(&self, other: &&'a str) -> Option<Ordering> {
                 Some(self.as_ref().cmp(*other))
@@ -243,7 +232,6 @@ macro_rules! id_impl {
 pub struct UserId(IdString);
 
 id_impl! {UserId}
-
 
 /// Id type for channels.
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
