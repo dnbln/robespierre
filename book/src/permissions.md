@@ -125,17 +125,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #     let connection = Connection::connect(&auth).await?;
 # 
 #     let context = Context::new(http, robespierre::typemap::ShareMap::custom()).with_cache(CacheConfig::default());
+
+    let fw = StandardFramework::default()
+        .configure(|c| c.prefix("!"))
+        .group(|g| {
+            g.name("General")
+                .command(|| Command::new("ban", ban as CommandCodeFn).required_server_permissions(ServerPermissions::BAN_MEMBERS))
+        });
+
+#     let handler = FrameworkWrap::new(fw, Handler);
+#     let handler = CacheWrap::new(EventHandlerWrap::new(handler));
 # 
-#     let fw = StandardFramework::default()
-#         .configure(|c| c.prefix("!"))
-#         .group(|g| {
-#             g.name("General")
-#                 .command(|| Command::new("ban", ban as CommandCodeFn).required_server_permissions(ServerPermissions::BAN_MEMBERS))
-#         });
-
-    let handler = FrameworkWrap::new(fw, Handler);
-    let handler = CacheWrap::new(EventHandlerWrap::new(handler));
-
 #     connection.run(context, handler).await?;
 # 
 #     Ok(())
