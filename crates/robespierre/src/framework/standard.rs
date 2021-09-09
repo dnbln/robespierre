@@ -10,11 +10,15 @@ use std::{
 #[cfg(feature = "cache")]
 use robespierre_cache::{Cache, HasCache};
 use robespierre_models::{
-    channel::{Message, MessageContent},
+    channel::{ChannelPermissions, Message, MessageContent},
     id::UserId,
+    server::ServerPermissions,
 };
 
-use crate::{Context, HasHttp, UserData};
+use crate::{
+    model::{MessageExt, ServerIdExt},
+    Context, HasHttp, UserData,
+};
 
 use super::Framework;
 
@@ -143,7 +147,7 @@ impl Framework for StandardFramework {
                         return;
                     }
 
-                    let result = cmd.code.invoke(&ctx, message, args).await;
+                    let result = cmd.invoke(&ctx, message, args).await;
 
                     self.invoke_after(&ctx, message, result).await;
                 }
@@ -273,6 +277,7 @@ pub struct Command {
     name: Cow<'static, str>,
     aliases: smallvec::SmallVec<[Cow<'static, str>; 4]>,
     code: CommandCode,
+    required_perms: (ServerPermissions, ChannelPermissions),
     owners_only: bool,
 }
 
@@ -282,6 +287,7 @@ impl Command {
             name: name.into(),
             aliases: smallvec::SmallVec::default(),
             code: code.into(),
+            required_perms: (ServerPermissions::empty(), ChannelPermissions::empty()),
             owners_only: false,
         }
     }
@@ -291,10 +297,85 @@ impl Command {
         self
     }
 
+    pub fn required_server_permissions(mut self, perms: impl Into<ServerPermissions>) -> Self {
+        self.required_perms.0 = perms.into();
+        self
+    }
+
+    pub fn required_channel_permissions(mut self, perms: impl Into<ChannelPermissions>) -> Self {
+        self.required_perms.1 = perms.into();
+        self
+    }
+
     pub fn owners_only(self, owners_only: impl Into<bool>) -> Self {
         Self {
             owners_only: owners_only.into(),
             ..self
+        }
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("one or more of the following permissions are missing: (server: {0:?}, channel: {1:?})")]
+pub struct MissingPermissions(ServerPermissions, ChannelPermissions);
+
+async fn check_perms<'a>(
+    ctx: &'a FwContext,
+    message: &'a Message,
+    sp: ServerPermissions,
+    cp: ChannelPermissions,
+) -> CommandResult {
+    let channel = message.channel(ctx).await?;
+
+    match &channel {
+        robespierre_models::channel::Channel::SavedMessages { .. }
+        | robespierre_models::channel::Channel::DirectMessage { .. } => Ok::<_, CommandError>(()),
+        ch @ robespierre_models::channel::Channel::Group { .. } => {
+            let check = robespierre_models::permissions_utils::user_has_permissions_in_group(
+                message.author,
+                ch,
+                cp,
+            );
+
+            if check {
+                Ok::<_, CommandError>(())
+            } else {
+                Err(MissingPermissions(ServerPermissions::empty(), cp).into())
+            }
+        }
+        ch @ robespierre_models::channel::Channel::TextChannel { .. }
+        | ch @ robespierre_models::channel::Channel::VoiceChannel { .. } => {
+            let server = ch.server_id().unwrap();
+            let member = server.member(ctx, message.author).await?;
+            let server = server.server(ctx).await?;
+
+            let check = robespierre_models::permissions_utils::member_has_permissions_in_channel(
+                &member, sp, &server, cp, ch,
+            );
+
+            if check {
+                Ok::<_, CommandError>(())
+            } else {
+                Err(MissingPermissions(sp, cp).into())
+            }
+        }
+    }
+}
+
+impl Command {
+    fn invoke<'a>(
+        &'a self,
+        ctx: &'a FwContext,
+        message: &'a Arc<Message>,
+        args: &'a str,
+    ) -> impl Future<Output = CommandResult> + Send + 'a {
+        let (sp, cp) = self.required_perms;
+        async move {
+            check_perms(ctx, message, sp, cp).await?;
+
+            self.code.invoke(ctx, message, args).await?;
+
+            Ok::<_, CommandError>(())
         }
     }
 }

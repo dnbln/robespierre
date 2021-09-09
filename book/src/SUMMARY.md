@@ -4,3 +4,4 @@
 - [Framework](framework.md)
 - [User data](user-data.md)
 - [Extractors](extractors.md)
+- [Permissions](permissions.md)

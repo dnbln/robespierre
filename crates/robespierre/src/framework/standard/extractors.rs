@@ -1,6 +1,10 @@
 use std::{borrow::Cow, future::Future, pin::Pin, sync::Arc};
 
-use robespierre_models::{channel::Message, server::Member, user::User};
+use robespierre_models::{
+    channel::{ChannelPermissions, Message},
+    server::{Member, ServerPermissions},
+    user::User,
+};
 
 use crate::model::{MessageExt, ServerIdExt};
 
@@ -83,6 +87,33 @@ impl FromMessage for AuthorMember {
             Ok::<_, CommandError>(AuthorMember(
                 server.member(&ctx, message.message.author).await?,
             ))
+        })
+    }
+}
+
+pub struct RequiredPermissions<const SP: u32, const CP: u32>;
+
+pub type RequiredServerPermissions<const SP: u32> =
+    RequiredPermissions<SP, { ChannelPermissions::bits(&ChannelPermissions::empty()) }>;
+
+pub type RequiredChannelPermissions<const CP: u32> =
+    RequiredPermissions<{ ServerPermissions::bits(&ServerPermissions::empty()) }, CP>;
+
+impl<const SP: u32, const CP: u32> FromMessage for RequiredPermissions<SP, CP> {
+    type Config = ();
+
+    type Fut = Pin<Box<dyn Future<Output = CommandResult<Self>> + Send>>;
+
+    fn from_message(ctx: FwContext, message: Msg, _config: Self::Config) -> Self::Fut {
+        Box::pin(async move {
+            super::check_perms(
+                &ctx,
+                &message.message,
+                ServerPermissions::from_bits_truncate(SP),
+                ChannelPermissions::from_bits_truncate(CP),
+            )
+            .await
+            .map(|_| Self)
         })
     }
 }

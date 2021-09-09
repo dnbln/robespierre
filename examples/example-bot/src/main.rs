@@ -3,7 +3,9 @@ use std::pin::Pin;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
-use robespierre::framework::standard::extractors::{Args, AuthorMember, Rest};
+use robespierre::framework::standard::extractors::{
+    Args, AuthorMember, RequiredServerPermissions, Rest,
+};
 use robespierre::framework::standard::{
     macros::command, AfterHandlerCodeFn, Command, CommandCodeFn, CommandResult, FwContext,
     NormalMessageHandlerCodeFn, StandardFramework,
@@ -57,6 +59,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .command(|| Command::new("stat_user", stat_user as CommandCodeFn))
                 .command(|| Command::new("stat_channel", stat_channel as CommandCodeFn))
                 .command(|| Command::new("ban_perm_test", ban_perm_test as CommandCodeFn))
+                .command(|| Command::new("requires_ban_perm", requires_ban_perm as CommandCodeFn))
         })
         .normal_message(normal_message as NormalMessageHandlerCodeFn)
         .after(after_handler as AfterHandlerCodeFn);
@@ -177,6 +180,18 @@ async fn ban_perm_test(
     );
 
     msg.reply(ctx, format!("{}", result)).await?;
+
+    Ok(())
+}
+
+#[command]
+async fn requires_ban_perm(
+    ctx: &FwContext,
+    msg: &Message,
+    _: RequiredServerPermissions<{ ServerPermissions::bits(&ServerPermissions::BAN_MEMBERS) }>,
+) -> CommandResult {
+    msg.reply(ctx, "If I got here, author has ban perms")
+        .await?;
 
     Ok(())
 }
