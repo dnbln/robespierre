@@ -169,7 +169,7 @@ impl Cache {
         if let Some(server) = lock.get_mut(&server_id) {
             if let Some(ref mut roles_obj) = server.roles {
                 let patch = patch();
-                
+
                 roles_obj.patch_role(&role_id, patch, remove);
             }
         }
@@ -433,7 +433,9 @@ impl CommitToCache for ServerToClientEvent {
                 data,
                 clear,
             } => {
-                cache.patch_role(*id, *role_id, || data.clone(), *clear).await;
+                cache
+                    .patch_role(*id, *role_id, || data.clone(), *clear)
+                    .await;
             }
             ServerToClientEvent::ServerRoleDelete { id, role_id } => {
                 cache.delete_role(*id, *role_id).await;

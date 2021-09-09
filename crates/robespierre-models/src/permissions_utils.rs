@@ -1,6 +1,6 @@
 use crate::{
     channel::{Channel, ChannelPermissions},
-    id::RoleId,
+    id::{RoleId, UserId},
     server::{Member, Role, Server, ServerPermissions},
 };
 
@@ -57,10 +57,12 @@ pub fn member_has_permissions(
 ) -> bool {
     if server.owner == member.id.user {
         // owner has all perms
-        return true
+        return true;
     }
 
-    perms_or(server, &member.roles).0.contains(server_permissions)
+    perms_or(server, &member.roles)
+        .0
+        .contains(server_permissions)
 }
 
 pub fn member_has_permissions_in_channel(
@@ -72,10 +74,32 @@ pub fn member_has_permissions_in_channel(
 ) -> bool {
     if server.owner == member.id.user {
         // owner has all perms
-        return true
+        return true;
     }
 
     let (sp, cp) = perms_or_in_channel(server, &member.roles, channel);
 
     sp.contains(server_permissions) && cp.contains(channel_permissions)
+}
+
+pub fn user_has_permissions_in_group(
+    user: UserId,
+    group: &Channel,
+    check_permissions: ChannelPermissions,
+) -> bool {
+    match group {
+        Channel::Group {
+            owner, permissions, ..
+        } => {
+            if user == *owner {
+                // owner has all perms
+                return true;
+            }
+
+            permissions
+                .unwrap_or(ChannelPermissions::empty())
+                .contains(check_permissions)
+        }
+        _ => false,
+    }
 }
