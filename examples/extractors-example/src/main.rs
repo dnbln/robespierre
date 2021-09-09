@@ -1,17 +1,17 @@
-use robespierre::CacheWrap;
-use robespierre::EventHandlerWrap;
-use robespierre::Context;
-use robespierre::Authentication;
-use robespierre::model::MessageExt;
-use robespierre::framework::standard::{FwContext, CommandResult, macros::command};
-use robespierre::framework::standard::{StandardFramework, Command, CommandCodeFn};
 use robespierre::framework::standard::extractors::{Args, Author, RawArgs, Rest};
+use robespierre::framework::standard::{macros::command, CommandResult, FwContext};
+use robespierre::framework::standard::{Command, CommandCodeFn, StandardFramework};
+use robespierre::model::MessageExt;
+use robespierre::Authentication;
+use robespierre::CacheWrap;
+use robespierre::Context;
+use robespierre::EventHandlerWrap;
 use robespierre::FrameworkWrap;
 use robespierre_cache::CacheConfig;
 use robespierre_events::Connection;
 use robespierre_http::Http;
-use robespierre_models::user::User;
 use robespierre_models::channel::{Channel, Message};
+use robespierre_models::user::User;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -25,7 +25,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let http = Http::new(&auth).await?;
     let connection = Connection::connect(&auth).await?;
 
-    let context = Context::new(http, robespierre::typemap::ShareMap::custom()).with_cache(CacheConfig::default());
+    let context = Context::new(http, robespierre::typemap::ShareMap::custom())
+        .with_cache(CacheConfig::default());
 
     let fw = StandardFramework::default()
         .configure(|c| c.prefix("!"))
@@ -35,7 +36,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .command(|| Command::new("stat_channel", stat_channel as CommandCodeFn))
                 .command(|| Command::new("repeat", repeat as CommandCodeFn))
                 .command(|| Command::new("repeat_with_commas", repeat_with_commas as CommandCodeFn))
-                .command(|| Command::new("repeat_with_commas_using_rest", repeat_with_commas_using_rest as CommandCodeFn))
+                .command(|| {
+                    Command::new(
+                        "repeat_with_commas_using_rest",
+                        repeat_with_commas_using_rest as CommandCodeFn,
+                    )
+                })
         });
     let handler = FrameworkWrap::new(fw, Handler);
     let handler = CacheWrap::new(EventHandlerWrap::new(handler));
@@ -45,8 +51,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[command]
-async fn stat_user(ctx: &FwContext, message: &Message,
-    Args((user,)): Args<(User,)> // parses a single argument as an UserId, and fetches the user with that id
+async fn stat_user(
+    ctx: &FwContext,
+    message: &Message,
+    Args((user,)): Args<(User,)>, // parses a single argument as an UserId, and fetches the user with that id
 ) -> CommandResult {
     message.reply(ctx, format!("{:?}", user)).await?;
 
@@ -54,8 +62,10 @@ async fn stat_user(ctx: &FwContext, message: &Message,
 }
 
 #[command]
-async fn stat_channel(ctx: &FwContext, message: &Message,
-    Args((channel,)): Args<(Channel,)> // parses a single argument as a ChannelId, and fetches the channel with that id
+async fn stat_channel(
+    ctx: &FwContext,
+    message: &Message,
+    Args((channel,)): Args<(Channel,)>, // parses a single argument as a ChannelId, and fetches the channel with that id
 ) -> CommandResult {
     message.reply(ctx, format!("{:?}", channel)).await?;
 
@@ -63,7 +73,12 @@ async fn stat_channel(ctx: &FwContext, message: &Message,
 }
 
 #[command]
-async fn repeat(ctx: &FwContext, message: &Message, Author(author): Author, RawArgs(args): RawArgs) -> CommandResult {
+async fn repeat(
+    ctx: &FwContext,
+    message: &Message,
+    Author(author): Author,
+    RawArgs(args): RawArgs,
+) -> CommandResult {
     if author.id != "<your user id>" {
         return Ok(());
     }
@@ -79,14 +94,15 @@ async fn repeat_with_commas(
     ctx: &FwContext,
     message: &Message,
     Author(author): Author,
-    #[delimiter(",")]
-    Args((arg1, arg2)): Args<(String, String)>
+    #[delimiter(",")] Args((arg1, arg2)): Args<(String, String)>,
 ) -> CommandResult {
     if author.id != "<your user id>" {
         return Ok(());
     }
 
-    message.reply(ctx, format!("first: {}, second: {}", arg1, arg2)).await?;
+    message
+        .reply(ctx, format!("first: {}, second: {}", arg1, arg2))
+        .await?;
 
     Ok(())
 }
@@ -96,14 +112,15 @@ async fn repeat_with_commas_using_rest(
     ctx: &FwContext,
     message: &Message,
     Author(author): Author,
-    #[delimiter(",")]
-    Args((arg1, Rest(arg2))): Args<(String, Rest<String>)>
+    #[delimiter(",")] Args((arg1, Rest(arg2))): Args<(String, Rest<String>)>,
 ) -> CommandResult {
     if author.id != "<your user id>" {
         return Ok(());
     }
 
-    message.reply(ctx, format!("first: {}, second: {}", arg1, arg2)).await?;
+    message
+        .reply(ctx, format!("first: {}, second: {}", arg1, arg2))
+        .await?;
 
     Ok(())
 }

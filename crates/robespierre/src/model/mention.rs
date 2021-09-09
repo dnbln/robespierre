@@ -111,7 +111,7 @@ mod tests {
     #[test]
     fn mention_user_display() {
         let id = "A".repeat(26);
-        
+
         let user_id: UserId = id.parse().unwrap();
         let mention = Mention::User(user_id);
 
@@ -121,7 +121,7 @@ mod tests {
     #[test]
     fn mention_channel_display() {
         let id = "A".repeat(26);
-        
+
         let channel_id: ChannelId = id.parse().unwrap();
         let mention = Mention::Channel(channel_id);
 

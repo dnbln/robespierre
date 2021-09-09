@@ -10,7 +10,7 @@ fn main() {
 }
 
 mod module {
-    use robespierre::framework::standard::{CommandResult, FwContext, macros::command};
+    use robespierre::framework::standard::{macros::command, CommandResult, FwContext};
     use robespierre_models::channel::Message;
 
     #[command]

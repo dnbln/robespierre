@@ -49,4 +49,3 @@ pub enum AttachmentTag {
     Banners,
     Icons,
 }
-

@@ -1,9 +1,9 @@
 // src/main.rs
-use robespierre::CacheWrap;
-use robespierre::EventHandlerWrap;
-use robespierre::Context;
-use robespierre::Authentication;
 use robespierre::model::MessageExt;
+use robespierre::Authentication;
+use robespierre::CacheWrap;
+use robespierre::Context;
+use robespierre::EventHandlerWrap;
 use robespierre_cache::CacheConfig;
 use robespierre_events::Connection;
 use robespierre_http::Http;
@@ -19,14 +19,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let auth = Authentication::bot(token);
     let http = Http::new(&auth).await?;
     let connection = Connection::connect(&auth).await?;
-    let context = Context::new(http, robespierre::typemap::ShareMap::custom()).with_cache(CacheConfig::default());
+    let context = Context::new(http, robespierre::typemap::ShareMap::custom())
+        .with_cache(CacheConfig::default());
     let handler = Handler;
     let handler = CacheWrap::new(EventHandlerWrap::new(handler));
     connection.run(context, handler).await?;
 
     Ok(())
 }
-
 
 #[derive(Clone)]
 struct Handler;

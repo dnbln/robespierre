@@ -820,7 +820,6 @@ pub enum FetchInviteResult {
     },
 }
 
-
 mod utils {
     use robespierre_models::{
         channel::{ChannelPermissions, ReplyData},

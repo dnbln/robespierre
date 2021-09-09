@@ -96,7 +96,6 @@ pub struct RevoltInstanceFeatures {
     pub voso: Voso,
 }
 
-
 /// Captcha feature
 #[derive(serde::Deserialize, Clone)]
 pub struct CaptchaInfo {

@@ -2,7 +2,12 @@
 use robespierre_cache::CommitToCache;
 #[cfg(feature = "events")]
 use robespierre_events::typing::TypingSession;
-use robespierre_models::{channel::{Channel, Message, ReplyData}, id::{AttachmentId, ChannelId, MemberId, ServerId, UserId}, server::{Member, Server}, user::User};
+use robespierre_models::{
+    channel::{Channel, Message, ReplyData},
+    id::{AttachmentId, ChannelId, MemberId, ServerId, UserId},
+    server::{Member, Server},
+    user::User,
+};
 
 use crate::{CacheHttp, Context, HasHttp, Result};
 
@@ -32,8 +37,16 @@ impl<T> CommitToCache for T {}
 
 #[async_trait::async_trait]
 pub trait MessageExt {
-    async fn reply(&self, ctx: &impl HasHttp, content: impl IntoString + 'async_trait) -> Result<Message>;
-    async fn reply_ping(&self, ctx: &impl HasHttp, content: impl IntoString + 'async_trait) -> Result<Message>;
+    async fn reply(
+        &self,
+        ctx: &impl HasHttp,
+        content: impl IntoString + 'async_trait,
+    ) -> Result<Message>;
+    async fn reply_ping(
+        &self,
+        ctx: &impl HasHttp,
+        content: impl IntoString + 'async_trait,
+    ) -> Result<Message>;
     async fn author(&self, ctx: &impl CacheHttp) -> Result<User>;
     async fn channel(&self, ctx: &impl CacheHttp) -> Result<Channel>;
     async fn server_id(&self, ctx: &impl CacheHttp) -> Result<Option<ServerId>>;
@@ -76,7 +89,11 @@ impl CreateMessage {
 
 #[async_trait::async_trait]
 impl MessageExt for Message {
-    async fn reply(&self, ctx: &impl HasHttp, content: impl IntoString + 'async_trait) -> Result<Message> {
+    async fn reply(
+        &self,
+        ctx: &impl HasHttp,
+        content: impl IntoString + 'async_trait,
+    ) -> Result<Message> {
         let content = content.into();
         self.channel
             .send_message(ctx, |m| {
@@ -88,7 +105,11 @@ impl MessageExt for Message {
             .await
     }
 
-    async fn reply_ping(&self, ctx: &impl HasHttp, content: impl IntoString + 'async_trait) -> Result<Message> {
+    async fn reply_ping(
+        &self,
+        ctx: &impl HasHttp,
+        content: impl IntoString + 'async_trait,
+    ) -> Result<Message> {
         let content = content.into();
         self.channel
             .send_message(ctx, |m| {

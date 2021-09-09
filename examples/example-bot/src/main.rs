@@ -85,10 +85,10 @@ async fn ping(ctx: &FwContext, message: &Message) -> CommandResult {
 #[command]
 async fn repeat(ctx: &FwContext, message: &Message, arg: Args<(String,)>) -> CommandResult {
     if message.author != "01FE638VK54XZ6FEK167D4VC9N" {
-        return Ok(())
+        return Ok(());
     }
 
-    let s = arg.0.0;
+    let s = arg.0 .0;
 
     message.reply(ctx, s).await?;
 
@@ -96,41 +96,65 @@ async fn repeat(ctx: &FwContext, message: &Message, arg: Args<(String,)>) -> Com
 }
 
 #[command]
-async fn stat_channel(ctx: &FwContext, message: &Message, Args((channel,)): Args<(Channel,)>) -> CommandResult {
+async fn stat_channel(
+    ctx: &FwContext,
+    message: &Message,
+    Args((channel,)): Args<(Channel,)>,
+) -> CommandResult {
     message.reply(ctx, format!("{:?}", channel)).await?;
 
     Ok(())
 }
 
 #[command]
-async fn stat_user(ctx: &FwContext, message: &Message, Args((user,)): Args<(User,)>) -> CommandResult {
+async fn stat_user(
+    ctx: &FwContext,
+    message: &Message,
+    Args((user,)): Args<(User,)>,
+) -> CommandResult {
     message.reply(ctx, format!("{:?}", user)).await?;
 
     Ok(())
 }
 
 #[command]
-async fn repeat2(ctx: &FwContext, message: &Message, #[delimiter(",")] Args((s1, s2)): Args<(String, String)>, member: Option<AuthorMember>) -> CommandResult {
+async fn repeat2(
+    ctx: &FwContext,
+    message: &Message,
+    #[delimiter(",")] Args((s1, s2)): Args<(String, String)>,
+    member: Option<AuthorMember>,
+) -> CommandResult {
     if message.author != "01FE638VK54XZ6FEK167D4VC9N" {
-        return Ok(())
+        return Ok(());
     }
 
     println!("{:?}", &member);
 
-    message.reply(ctx, format!("first: {}, second: {}", s1, s2)).await?;
+    message
+        .reply(ctx, format!("first: {}, second: {}", s1, s2))
+        .await?;
 
     Ok(())
 }
 
 #[command]
-async fn repeat3(ctx: &FwContext, message: &Message, #[delimiter(",")] Args((s1, user, Rest(s2))): Args<(String, Option<UserId>, Rest<String>)>) -> CommandResult {
+async fn repeat3(
+    ctx: &FwContext,
+    message: &Message,
+    #[delimiter(",")] Args((s1, user, Rest(s2))): Args<(String, Option<UserId>, Rest<String>)>,
+) -> CommandResult {
     if message.author != "01FE638VK54XZ6FEK167D4VC9N" {
-        return Ok(())
+        return Ok(());
     }
 
     println!("{:?}", &user);
 
-    message.reply(ctx, format!("first: {}, user: {:?}\n, second: {}", s1, user, s2)).await?;
+    message
+        .reply(
+            ctx,
+            format!("first: {}, user: {:?}\n, second: {}", s1, user, s2),
+        )
+        .await?;
 
     Ok(())
 }

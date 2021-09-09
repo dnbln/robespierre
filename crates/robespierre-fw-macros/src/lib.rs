@@ -11,7 +11,7 @@ struct ExtraArgs<'a>(&'a [&'a Box<Type>], &'a [Vec<Attribute>]);
 impl<'a> ToTokens for ExtraArgs<'a> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         for (ty, attrs) in self.0.iter().zip(self.1.iter()) {
-            let config_ty = quote!{<#ty as ::robespierre::framework::standard::extractors::FromMessage>::Config};
+            let config_ty = quote! {<#ty as ::robespierre::framework::standard::extractors::FromMessage>::Config};
             let config_ty_ufcs_root = quote! {<#config_ty as ::robespierre::framework::standard::extractors::ExtractorConfigBuilder>};
             let config_builder = {
                 let tks = quote! {<<#ty as ::robespierre::framework::standard::extractors::FromMessage>::Config as std::default::Default>::default()};

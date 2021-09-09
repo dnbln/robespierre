@@ -1,8 +1,8 @@
 pub extern crate async_std;
 pub extern crate typemap;
 
-pub extern crate robespierre_models;
 pub extern crate robespierre_http;
+pub extern crate robespierre_models;
 
 #[cfg(feature = "cache")]
 pub extern crate robespierre_cache;
@@ -643,7 +643,6 @@ impl<T: HasHttp> CacheHttp for T {
         self.get_http()
     }
 }
-
 
 #[cfg(doctest)]
 mod booktests;

@@ -6,7 +6,10 @@ use std::sync::{
 use robespierre_cache::{Cache, CacheConfig, CommitToCache, HasCache};
 use robespierre_events::{Authentication, Connection, RawEventHandler};
 use robespierre_http::{Http, HttpAuthentication};
-use robespierre_models::{autumn::AutumnTag, channel::{MessageContent, ReplyData}};
+use robespierre_models::{
+    autumn::AutumnTag,
+    channel::{MessageContent, ReplyData},
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -90,8 +93,7 @@ impl RawEventHandler for Handler {
                             "Hello <@{}> from <#{}>{}",
                             author.id,
                             channel.id(),
-                            server
-                                .map_or_else(Default::default, |it| format!(" in {}", it.name))
+                            server.map_or_else(Default::default, |it| format!(" in {}", it.name))
                         ),
                         rusty_ulid::generate_ulid_string(),
                         vec![att_id],
@@ -104,7 +106,8 @@ impl RawEventHandler for Handler {
             }
 
             // framework commands
-            if matches!(&message.content, MessageContent::Content(s) if s == "!ping" || s == "!pong") {
+            if matches!(&message.content, MessageContent::Content(s) if s == "!ping" || s == "!pong")
+            {
                 let num = ctx.2.fetch_add(1, Ordering::Relaxed);
 
                 let _ = ctx

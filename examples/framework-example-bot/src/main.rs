@@ -1,11 +1,11 @@
 // src/main.rs
-use robespierre::CacheWrap;
-use robespierre::EventHandlerWrap;
-use robespierre::Context;
-use robespierre::Authentication;
+use robespierre::framework::standard::{macros::command, CommandResult, FwContext};
+use robespierre::framework::standard::{Command, CommandCodeFn, StandardFramework};
 use robespierre::model::MessageExt;
-use robespierre::framework::standard::{FwContext, CommandResult, macros::command};
-use robespierre::framework::standard::{StandardFramework, Command, CommandCodeFn};
+use robespierre::Authentication;
+use robespierre::CacheWrap;
+use robespierre::Context;
+use robespierre::EventHandlerWrap;
 use robespierre::FrameworkWrap;
 use robespierre_cache::CacheConfig;
 use robespierre_events::Connection;
@@ -24,7 +24,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let http = Http::new(&auth).await?;
     let connection = Connection::connect(&auth).await?;
 
-    let context = Context::new(http, robespierre::typemap::ShareMap::custom()).with_cache(CacheConfig::default());
+    let context = Context::new(http, robespierre::typemap::ShareMap::custom())
+        .with_cache(CacheConfig::default());
 
     let fw = StandardFramework::default()
         .configure(|c| c.prefix("!"))

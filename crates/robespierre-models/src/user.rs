@@ -20,7 +20,7 @@ pub struct User {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub avatar: Option<Attachment>,
     /// The relationships with other users.
-    /// 
+    ///
     /// Note: this is only available is this user
     /// is the currently logged-in user.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -213,7 +213,6 @@ pub struct UserProfileDataPatch {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub background: Option<AttachmentId>,
 }
-
 
 /// A patch to an user.
 #[derive(Serialize, Default, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]

@@ -228,8 +228,11 @@ impl Connection {
 
 impl ConnectionInternal {
     async fn hb(&mut self) -> Result {
-        self.send_event(ClientToServerEvent::Ping { time: 0, data: (0,) })
-            .await?;
+        self.send_event(ClientToServerEvent::Ping {
+            time: 0,
+            data: (0,),
+        })
+        .await?;
 
         Ok(())
     }
@@ -274,9 +277,7 @@ impl ConnectionInternal {
 
         tracing::debug!("[>] {}", &json);
 
-        self.stream
-            .send(TungsteniteMessage::text(json))
-            .await?;
+        self.stream.send(TungsteniteMessage::text(json)).await?;
 
         Ok(())
     }

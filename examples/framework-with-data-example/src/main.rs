@@ -1,19 +1,19 @@
 // src/main.rs
-use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use robespierre::CacheWrap;
-use robespierre::EventHandlerWrap;
-use robespierre::Context;
-use robespierre::Authentication;
-use robespierre::UserData;
+use robespierre::framework::standard::{macros::command, CommandResult, FwContext};
+use robespierre::framework::standard::{Command, CommandCodeFn, StandardFramework};
 use robespierre::model::MessageExt;
-use robespierre::framework::standard::{FwContext, CommandResult, macros::command};
-use robespierre::framework::standard::{StandardFramework, Command, CommandCodeFn};
+use robespierre::Authentication;
+use robespierre::CacheWrap;
+use robespierre::Context;
+use robespierre::EventHandlerWrap;
 use robespierre::FrameworkWrap;
+use robespierre::UserData;
 use robespierre_cache::CacheConfig;
 use robespierre_events::Connection;
 use robespierre_http::Http;
 use robespierre_models::channel::Message;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 struct CommandCounterKey;
 
@@ -60,7 +60,7 @@ async fn ping(ctx: &FwContext, msg: &Message) -> CommandResult {
     let data = ctx.data_lock_read().await;
     let counter = data.get::<CommandCounterKey>().unwrap();
     counter.fetch_add(1, Ordering::SeqCst);
-    
+
     Ok(())
 }
 
@@ -70,8 +70,12 @@ async fn command_counter(ctx: &FwContext, msg: &Message) -> CommandResult {
     let counter = data.get::<CommandCounterKey>().unwrap();
     let count = counter.fetch_add(1, Ordering::SeqCst); // this is itself a command,
                                                         // so fetch previous count and add one.
-    msg.reply(ctx, format!("I received {} commands since I started running", count)).await?;
-    
+    msg.reply(
+        ctx,
+        format!("I received {} commands since I started running", count),
+    )
+    .await?;
+
     Ok(())
 }
 

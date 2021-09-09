@@ -10,7 +10,10 @@ use robespierre_models::{
     user::User,
 };
 
-use crate::{framework::standard::{CommandError, CommandResult, FwContext}, model::{ChannelIdExt, UserIdExt}};
+use crate::{
+    framework::standard::{CommandError, CommandResult, FwContext},
+    model::{ChannelIdExt, UserIdExt},
+};
 
 use super::{ExtractorConfigBuilder, FromMessage, Msg};
 
