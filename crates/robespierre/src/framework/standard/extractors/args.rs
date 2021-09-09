@@ -44,6 +44,21 @@ impl<T: ArgTuple> FromMessage for Args<T> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct QuoteRespectingArgs<T: ArgTuple>(pub T);
+
+impl<T: ArgTuple> FromMessage for QuoteRespectingArgs<T> {
+    type Config = ArgsConfig;
+    type Fut = Pin<Box<dyn Future<Output = CommandResult<Self>> + Send + 'static>>;
+
+    fn from_message(ctx: FwContext, message: Msg, config: Self::Config) -> Self::Fut {
+        Box::pin(async move {
+            let fut = T::from_message(ctx, message, config.quote_parser(true));
+            Ok::<_, CommandError>(QuoteRespectingArgs(fut.await?))
+        })
+    }
+}
+
 pub trait ArgTuple: FromMessage<Config = ArgsConfig> + Sized {}
 
 #[derive(Debug, thiserror::Error)]
@@ -243,6 +258,28 @@ where
     }
 }
 
+pub struct UnwrapQuote<T: Arg + 'static>(pub T);
+
+impl<T> Arg for UnwrapQuote<T>
+where
+    T: Arg,
+{
+    type Err = <T as Arg>::Err;
+    #[allow(clippy::type_complexity)]
+    type Fut = Pin<Box<dyn Future<Output = Result<(Self, PushBack), Self::Err>> + Send>>;
+
+    fn parse_arg(ctx: &FwContext, msg: &Msg, s: &str) -> Self::Fut {
+        let s = if s.starts_with('"') && s.ends_with('"') {
+            &s[1..s.len() - 1]
+        } else {
+            s
+        };
+
+        let fut = T::parse_arg(ctx, msg, s);
+        Box::pin(async move { fut.await.map(|it| (Self(it.0), it.1)) })
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 #[error("not enough args")]
 pub struct NotEnoughArgs;
@@ -342,6 +379,7 @@ arg_tuple_impl!(T1 => a1, T2 => a2, T3 => a3, T4 => a4, T5 => a5, T6 => a6, T7 =
 #[derive(Default)]
 pub struct ArgsConfig {
     pub delimiters: smallvec::SmallVec<[Cow<'static, str>; 2]>,
+    quote_parser: bool,
 }
 
 impl ArgsConfig {
@@ -351,6 +389,13 @@ impl ArgsConfig {
         }
 
         self
+    }
+
+    pub fn quote_parser(self, quote_parser: bool) -> Self {
+        Self {
+            quote_parser,
+            ..self
+        }
     }
 }
 
@@ -413,9 +458,15 @@ impl<'a> Iterator for ArgsLexer<'a> {
     type Item = Argument<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        // if there was an arg "pushed back", return it, e.g.
+        // Option<T: Arg> that failed parsing and wanted to return the token back
         if let Some((start, end)) = self.pushed_back {
+            // set the pushed back to none so we don't enter this again
             self.pushed_back = None;
+            // get the string
             let s = &self.args[start..end];
+
+            // return it
             if s.is_empty() {
                 return Some(Argument::Empty);
             }
@@ -423,36 +474,77 @@ impl<'a> Iterator for ArgsLexer<'a> {
         }
 
         let s = &self.args[self.current_pos..];
+        // we got to the end of the string
         if s.is_empty() {
             return None;
         }
 
+        // starts with any of the delimiters
         if let Some(delim) = self
             .args_config
             .delimiters
             .iter()
             .find(|it| s.starts_with(it.as_ref()))
         {
+            // skip the delimiter and return empty
             self.last_arg_indices = Some((self.current_pos, self.current_pos));
             self.current_pos += delim.as_ref().len();
             return Some(Argument::Empty);
         }
 
-        if let Some((delim, pos)) = self
-            .args_config
-            .delimiters
-            .iter()
-            .filter_map(|it| -> Option<(&str, usize)> {
-                s.find(it.as_ref()).map(|p| (it.as_ref(), p))
-            })
-            .min_by(|(_, a), (_, b)| a.cmp(b))
-        {
-            let current_pos = self.current_pos;
-            self.current_pos += pos + delim.len();
+        if !self.args_config.quote_parser {
+            // find next delimiter
+            if let Some((delim, pos)) = self
+                .args_config
+                .delimiters
+                .iter()
+                .filter_map(|it| -> Option<(&str, usize)> {
+                    s.find(it.as_ref()).map(|p| (it.as_ref(), p))
+                })
+                .min_by(|(_, a), (_, b)| a.cmp(b))
+            {
+                let current_pos = self.current_pos;
+                self.current_pos += pos + delim.len();
 
-            self.last_arg_indices = Some((current_pos, current_pos + pos));
+                self.last_arg_indices = Some((current_pos, current_pos + pos));
 
-            return Some(Argument::Simple(&self.args[current_pos..current_pos + pos]));
+                return Some(Argument::Simple(&self.args[current_pos..current_pos + pos]));
+            }
+        } else {
+            let mut in_quote = false;
+            let mut escaped = false;
+            for (pos, chr) in s.char_indices() {
+                if chr == '"' {
+                    if in_quote {
+                        if !escaped {
+                            in_quote = false;
+                        }
+                    } else {
+                        in_quote = true;
+                    }
+                    escaped = false;
+                } else if chr == '\\' {
+                    escaped = !escaped;
+                } else {
+                    escaped = false;
+                }
+
+                if !in_quote {
+                    if let Some(delim) = self
+                        .args_config
+                        .delimiters
+                        .iter()
+                        .find(|it| s[pos..].starts_with(it.as_ref()))
+                    {
+                        let current_pos = self.current_pos;
+                        self.current_pos += pos + delim.len();
+
+                        self.last_arg_indices = Some((current_pos, current_pos + pos));
+
+                        return Some(Argument::Simple(&self.args[current_pos..current_pos + pos]));
+                    }
+                }
+            }
         }
 
         let prev_pos = self.current_pos;
@@ -520,32 +612,78 @@ mod tests {
 
     #[test]
     fn args_lexer() {
-        {
-            let mut args_lexer = ArgsLexer::new(
-                "aaa bbb",
-                ArgsConfig {
-                    delimiters: smallvec::smallvec![" ".into()],
-                },
-            );
+        let mut args_lexer = ArgsLexer::new(
+            "aaa bbb",
+            ArgsConfig {
+                delimiters: smallvec::smallvec![" ".into()],
+                quote_parser: false,
+            },
+        );
 
-            assert_eq!(args_lexer.next(), Some(Argument::Simple("aaa")));
-            assert_eq!(args_lexer.next(), Some(Argument::Simple("bbb")));
-            assert_eq!(args_lexer.next(), None);
-        }
+        assert_eq!(args_lexer.next(), Some(Argument::Simple("aaa")));
+        assert_eq!(args_lexer.next(), Some(Argument::Simple("bbb")));
+        assert_eq!(args_lexer.next(), None);
+    }
+    #[test]
+    fn args_lexer_2() {
+        let mut args_lexer = ArgsLexer::new(
+            "aaa   bbb",
+            ArgsConfig {
+                delimiters: smallvec::smallvec![" ".into()],
+                quote_parser: false,
+            },
+        );
 
-        {
-            let mut args_lexer = ArgsLexer::new(
-                "aaa   bbb",
-                ArgsConfig {
-                    delimiters: smallvec::smallvec![" ".into()],
-                },
-            );
+        assert_eq!(args_lexer.next(), Some(Argument::Simple("aaa")));
+        assert_eq!(args_lexer.next(), Some(Argument::Empty));
+        assert_eq!(args_lexer.next(), Some(Argument::Empty));
+        assert_eq!(args_lexer.next(), Some(Argument::Simple("bbb")));
+        assert_eq!(args_lexer.next(), None);
+    }
+    #[test]
+    fn args_lexer_quoted_1() {
+        let mut args_lexer = ArgsLexer::new(
+            r#"aaa "bbb""#,
+            ArgsConfig {
+                delimiters: smallvec::smallvec![" ".into()],
+                quote_parser: true,
+            },
+        );
 
-            assert_eq!(args_lexer.next(), Some(Argument::Simple("aaa")));
-            assert_eq!(args_lexer.next(), Some(Argument::Empty));
-            assert_eq!(args_lexer.next(), Some(Argument::Empty));
-            assert_eq!(args_lexer.next(), Some(Argument::Simple("bbb")));
-            assert_eq!(args_lexer.next(), None);
-        }
+        assert_eq!(args_lexer.next(), Some(Argument::Simple("aaa")));
+        assert_eq!(args_lexer.next(), Some(Argument::Simple(r#""bbb""#)));
+        assert_eq!(args_lexer.next(), None);
+    }
+
+    #[test]
+    fn args_lexer_quoted_2() {
+        let mut args_lexer = ArgsLexer::new(
+            r#"aaa "bbb" ddd"#,
+            ArgsConfig {
+                delimiters: smallvec::smallvec![" ".into()],
+                quote_parser: true,
+            },
+        );
+
+        assert_eq!(args_lexer.next(), Some(Argument::Simple("aaa")));
+        assert_eq!(args_lexer.next(), Some(Argument::Simple(r#""bbb""#)));
+        assert_eq!(args_lexer.next(), Some(Argument::Simple("ddd")));
+        assert_eq!(args_lexer.next(), None);
+    }
+
+    #[test]
+    fn args_lexer_quoted_3() {
+        let mut args_lexer = ArgsLexer::new(
+            r#"aaa "bbb ccc" ddd"#,
+            ArgsConfig {
+                delimiters: smallvec::smallvec![" ".into()],
+                quote_parser: true,
+            },
+        );
+
+        assert_eq!(args_lexer.next(), Some(Argument::Simple("aaa")));
+        assert_eq!(args_lexer.next(), Some(Argument::Simple(r#""bbb ccc""#)));
+        assert_eq!(args_lexer.next(), Some(Argument::Simple("ddd")));
+        assert_eq!(args_lexer.next(), None);
     }
 }

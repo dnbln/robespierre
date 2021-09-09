@@ -23,7 +23,7 @@ tracing = "0.1"
 tracing-subscriber = "0.2" # not necessarely this but some global subscriber is required for logging
 ```
 
-```rust,no_run
+```rust ,no_run
 // src/main.rs
 fn main() {
     println!("Hello, world!");
@@ -31,7 +31,7 @@ fn main() {
 ```
 
 Let's start with a stub main, running on tokio:
-```rust,no_run
+```rust ,no_run
 // src/main.rs
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -40,7 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 Optional: initialize a global `tracing` subscriber:
-```rust,no_run
+```rust ,no_run
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
@@ -50,7 +50,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 Now, get the bot token:
-```rust,no_run
+```rust ,no_run
 // src/main.rs
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -64,7 +64,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 Create an authentication:
-```rust,no_run
+```rust ,no_run
 // src/main.rs
 use robespierre::Authentication;
 
@@ -82,7 +82,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 Then a http client:
-```rust,no_run
+```rust ,no_run
 // src/main.rs
 # use robespierre::Authentication;
 use robespierre_http::Http;
@@ -103,7 +103,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 And a websocket connection:
-```rust,no_run
+```rust ,no_run
 // src/main.rs
 # use robespierre::Authentication;
 use robespierre_events::Connection;
@@ -128,7 +128,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 Now let's write a basic event handler (similar to how they work in serenity):
 
-```rust,no_run
+```rust ,no_run
 // src/main.rs
 use robespierre::Context;
 # use robespierre::Authentication;
@@ -165,7 +165,7 @@ impl robespierre::EventHandler for Handler {
 
 And create the context and handler:
 
-```rust,no_run
+```rust ,no_run
 // src/main.rs
 # use robespierre::Context;
 # use robespierre::Authentication;
@@ -209,7 +209,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 Now let's "run" the connection, listening to events and handling them:
 
-```rust,no_run
+```rust ,no_run
 // src/main.rs
 use robespierre::EventHandlerWrap;
 # use robespierre::Context;
@@ -272,7 +272,7 @@ That can be done by using another utility, `robespierre::CacheWrap`.
 
 To use it:
 
-```rust,no_run
+```rust ,no_run
 // src/main.rs
 use robespierre::CacheWrap;
 # use robespierre::EventHandlerWrap;
@@ -319,7 +319,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 Now to finish, let's make the bot reply with "pong" whenever someone says "ping":
 
-```rust,no_run
+```rust ,no_run
 // src/main.rs
 # use robespierre::CacheWrap;
 # use robespierre::EventHandlerWrap;
