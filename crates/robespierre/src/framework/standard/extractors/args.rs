@@ -1,4 +1,4 @@
-use std::{borrow::Cow, convert::Infallible, pin::Pin, str::FromStr, sync::Arc};
+use std::{borrow::Cow, convert::Infallible, pin::Pin, sync::Arc};
 
 use futures::{
     future::{ready, Ready},
@@ -86,18 +86,32 @@ pub enum PushBack {
     Yes,
 }
 
+#[macro_export]
 macro_rules! from_str_arg_impl {
     ($t:ty) => {
-        impl Arg for $t
+        impl $crate::framework::standard::extractors::Arg for $t
         where
-            Self: FromStr + Send,
-            <Self as FromStr>::Err: std::error::Error + Send + Sync + 'static,
+            Self: ::std::str::FromStr + ::std::marker::Send,
+            <Self as ::std::str::FromStr>::Err:
+                ::std::error::Error + ::std::marker::Send + ::std::marker::Sync + 'static,
         {
-            type Err = <Self as FromStr>::Err;
-            type Fut = Ready<Result<(Self, PushBack), Self::Err>>;
+            type Err = <Self as ::std::str::FromStr>::Err;
+            type Fut = ::std::future::Ready<
+                ::std::result::Result<
+                    (Self, $crate::framework::standard::extractors::PushBack),
+                    Self::Err,
+                >,
+            >;
 
-            fn parse_arg(_ctx: &FwContext, _msg: &Msg, s: &str) -> Self::Fut {
-                ready(s.parse::<Self>().map(|it| (it, PushBack::No)))
+            fn parse_arg(
+                _ctx: &$crate::framework::standard::FwContext,
+                _msg: &$crate::framework::standard::extractors::Msg,
+                s: &::std::primitive::str,
+            ) -> Self::Fut {
+                ::std::future::ready(
+                    s.parse::<Self>()
+                        .map(|it| (it, $crate::framework::standard::extractors::PushBack::No)),
+                )
             }
         }
     };

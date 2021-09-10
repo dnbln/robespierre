@@ -13,7 +13,7 @@ use super::{CommandError, CommandResult, FwContext};
 mod args;
 pub use args::{
     Arg, Args, NeedArgValueError, NotEnoughArgs, ParseChannelError, ParseChannelIdError,
-    ParseUserError, ParseUserIdError, QuoteRespectingArgs, RawArgs, Rest, UnwrapQuote,
+    ParseUserError, ParseUserIdError, PushBack, QuoteRespectingArgs, RawArgs, Rest, UnwrapQuote,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

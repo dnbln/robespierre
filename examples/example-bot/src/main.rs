@@ -1,10 +1,14 @@
+use std::collections::HashSet;
+use std::convert::Infallible;
 use std::future::Future;
+use std::iter::FromIterator;
 use std::pin::Pin;
+use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use robespierre::framework::standard::extractors::{
-    Args, AuthorMember, RequiredServerPermissions, Rest,
+    Args, AuthorMember, RawArgs, RequiredServerPermissions, Rest,
 };
 use robespierre::framework::standard::{
     macros::command, AfterHandlerCodeFn, Command, CommandCodeFn, CommandResult, FwContext,
@@ -48,19 +52,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let ctx = Context::new(http, typemap).with_cache(CacheConfig::default());
 
+    let owners = HashSet::from_iter(["01FE638VK54XZ6FEK167D4VC9N".parse().unwrap()]);
+
     let fw = StandardFramework::default()
-        .configure(|c| c.prefix("!"))
+        .configure(|c| c.prefix("!").owners(owners))
         .group(|g| {
             g.name("General")
                 .command(|| Command::new("ping", ping as CommandCodeFn).alias("pong"))
-                .command(|| Command::new("repeat", repeat as CommandCodeFn))
-                .command(|| Command::new("repeat2", repeat2 as CommandCodeFn))
-                .command(|| Command::new("repeat3", repeat3 as CommandCodeFn))
+                .command(|| Command::new("repeat", repeat as CommandCodeFn).owners_only(true))
+                .command(|| Command::new("repeat2", repeat2 as CommandCodeFn).owners_only(true))
+                .command(|| Command::new("repeat3", repeat3 as CommandCodeFn).owners_only(true))
                 .command(|| Command::new("stat_user", stat_user as CommandCodeFn))
                 .command(|| Command::new("stat_channel", stat_channel as CommandCodeFn))
                 .command(|| Command::new("ban_perm_test", ban_perm_test as CommandCodeFn))
                 .command(|| Command::new("requires_ban_perm", requires_ban_perm as CommandCodeFn))
                 .command(|| Command::new("ulid_timestamp", ulid_timestamp as CommandCodeFn))
+                .command(|| Command::new("arg_test", arg_test as CommandCodeFn).owners_only(true))
+                .command(|| Command::new("say", say as CommandCodeFn).owners_only(true))
         })
         .normal_message(normal_message as NormalMessageHandlerCodeFn)
         .after(after_handler as AfterHandlerCodeFn);
@@ -90,13 +98,16 @@ async fn ping(ctx: &FwContext, message: &Message) -> CommandResult {
 
 #[command]
 async fn repeat(ctx: &FwContext, message: &Message, arg: Args<(String,)>) -> CommandResult {
-    if message.author != "01FE638VK54XZ6FEK167D4VC9N" {
-        return Ok(());
-    }
-
     let s = arg.0 .0;
 
     message.reply(ctx, s).await?;
+
+    Ok(())
+}
+
+#[command]
+async fn say(ctx: &FwContext, message: &Message, RawArgs(args): RawArgs) -> CommandResult {
+    message.reply(ctx, &*args).await?;
 
     Ok(())
 }
@@ -140,10 +151,6 @@ async fn repeat2(
     #[delimiter(",")] Args((s1, s2)): Args<(String, String)>,
     member: Option<AuthorMember>,
 ) -> CommandResult {
-    if message.author != "01FE638VK54XZ6FEK167D4VC9N" {
-        return Ok(());
-    }
-
     println!("{:?}", &member);
 
     message
@@ -159,10 +166,6 @@ async fn repeat3(
     message: &Message,
     #[delimiter(",")] Args((s1, user, Rest(s2))): Args<(String, Option<UserId>, Rest<String>)>,
 ) -> CommandResult {
-    if message.author != "01FE638VK54XZ6FEK167D4VC9N" {
-        return Ok(());
-    }
-
     println!("{:?}", &user);
 
     message
@@ -191,6 +194,29 @@ async fn ban_perm_test(
     );
 
     msg.reply(ctx, format!("{}", result)).await?;
+
+    Ok(())
+}
+
+struct MyArgTy(String);
+
+impl FromStr for MyArgTy {
+    type Err = Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(s.to_string()))
+    }
+}
+
+robespierre::from_str_arg_impl!(MyArgTy);
+
+#[command]
+async fn arg_test(
+    ctx: &FwContext,
+    message: &Message,
+    Args((MyArgTy(arg),)): Args<(MyArgTy,)>,
+) -> CommandResult {
+    message.reply(ctx, arg).await?;
 
     Ok(())
 }
