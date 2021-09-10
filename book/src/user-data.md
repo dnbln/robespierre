@@ -1,7 +1,7 @@
 # User data
 
 Let's start with the code from [the previous chapter](framework.md):
-```rust,no_run
+```rust ,no_run
 // src/main.rs
 use robespierre::CacheWrap;
 use robespierre::EventHandlerWrap;
@@ -60,7 +60,7 @@ impl robespierre::EventHandler for Handler {}
 
 Specifically this line is of interest:
 
-```rust,no_run
+```rust ,no_run
 // src/main.rs
 # use robespierre::CacheWrap;
 # use robespierre::EventHandlerWrap;
@@ -125,7 +125,7 @@ For performance, instead of using an
 
 First, we'll start with a definition of a typemap key:
 
-```rust,no_run
+```rust ,no_run
 // src/main.rs
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
@@ -192,7 +192,7 @@ impl robespierre::typemap::Key for CommandCounterKey {
 
 And add it to the map:
 
-```rust,no_run
+```rust ,no_run
 // src/main.rs
 # use std::sync::Arc;
 # use std::sync::atomic::AtomicUsize;

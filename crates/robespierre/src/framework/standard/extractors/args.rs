@@ -252,6 +252,10 @@ where
     const TRIM: bool = <T as Arg>::TRIM;
     const IS_REST: bool = true;
 
+    fn default_arg_value() -> Result<Self, NeedArgValueError> {
+        T::default_arg_value().map(Self)
+    }
+
     fn parse_arg(ctx: &FwContext, msg: &Msg, s: &str) -> Self::Fut {
         let fut = T::parse_arg(ctx, msg, s);
         Box::pin(async move { fut.await.map(|it| (Self(it.0), it.1)) })
