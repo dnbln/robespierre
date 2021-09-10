@@ -49,6 +49,13 @@ impl IdString {
     pub unsafe fn from_string_unchecked(s: String) -> Self {
         Self(s.as_bytes().try_into().unwrap())
     }
+
+    /// Gets the timestamp the object identified by this id was created at.
+    pub fn timestamp(&self) -> chrono::DateTime<chrono::Utc> {
+        let ulid = self.as_ref().parse::<rusty_ulid::Ulid>().unwrap();
+
+        ulid.datetime()
+    }
 }
 
 /// An error that can occur while parsing an IdString
@@ -142,6 +149,12 @@ impl<'a> PartialOrd<&'a str> for IdString {
 
 macro_rules! id_impl {
     ($name:ident) => {
+        impl $name {
+            pub fn timestamp(&self) -> chrono::DateTime<chrono::Utc> {
+                self.0.timestamp()
+            }
+        }
+
         impl From<IdString> for $name {
             fn from(id: IdString) -> Self {
                 Self(id)

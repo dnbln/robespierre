@@ -1,7 +1,3 @@
 {
     "rust-analyzer.checkOnSave.command": "clippy",
-    "files.associations": {
-        "*.rust,no_run": "rust",
-        "*.rust,ignore": "rust"
-    }
 }

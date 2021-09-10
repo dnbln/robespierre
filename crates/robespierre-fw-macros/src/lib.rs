@@ -11,10 +11,12 @@ struct ExtraArgs<'a>(&'a [&'a Box<Type>], &'a [Vec<Attribute>]);
 impl<'a> ToTokens for ExtraArgs<'a> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         for (ty, attrs) in self.0.iter().zip(self.1.iter()) {
-            let config_ty = quote! {<#ty as ::robespierre::framework::standard::extractors::FromMessage>::Config};
+            let ty_from_message =
+                quote! {<#ty as ::robespierre::framework::standard::extractors::FromMessage>};
+            let config_ty = quote! {#ty_from_message ::Config};
             let config_ty_ufcs_root = quote! {<#config_ty as ::robespierre::framework::standard::extractors::ExtractorConfigBuilder>};
             let config_builder = {
-                let tks = quote! {<<#ty as ::robespierre::framework::standard::extractors::FromMessage>::Config as std::default::Default>::default()};
+                let tks = quote! {<#config_ty as ::std::default::Default>::default()};
 
                 let tks = attrs.iter().fold(tks, |tks, attr| {
                     if attr.path.is_ident("delimiter") {
@@ -42,7 +44,7 @@ impl<'a> ToTokens for ExtraArgs<'a> {
                 tks
             };
             tokens.extend(quote! {
-                <#ty as ::robespierre::framework::standard::extractors::FromMessage>::from_message(ctx.clone(), __message.clone(), #config_builder).await?,
+                #ty_from_message ::from_message(ctx.clone(), __message.clone(), #config_builder).await?,
             });
         }
     }

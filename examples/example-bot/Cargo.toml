@@ -15,3 +15,4 @@ robespierre = { path = "../../crates/robespierre" }
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = "0.2.20"
+rusty_ulid = "0.11"

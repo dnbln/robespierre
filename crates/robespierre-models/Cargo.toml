@@ -13,3 +13,5 @@ serde = { version = "1", features = ["derive"] }
 thiserror = "1"
 bitflags = "1"
 chrono = { version = "0.4", features = ["serde"] }
+rusty_ulid = "0.11"
+

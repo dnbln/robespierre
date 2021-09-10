@@ -16,5 +16,8 @@ book_chapter_test!(writing_an_example_bot, "writing-an-example-bot.md");
 book_chapter_test!(framework, "framework.md");
 book_chapter_test!(user_data, "user-data.md");
 book_chapter_test!(extractors, "extractors.md");
-book_chapter_test!(writing_custom_frommessage_impls, "writing-custom-FromMessage-impls.md");
+book_chapter_test!(
+    writing_custom_frommessage_impls,
+    "writing-custom-FromMessage-impls.md"
+);
 book_chapter_test!(permissions, "permissions.md");

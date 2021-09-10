@@ -1,4 +1,4 @@
-use std::{borrow::Cow, convert::Infallible, pin::Pin, sync::Arc};
+use std::{borrow::Cow, convert::Infallible, pin::Pin, str::FromStr, sync::Arc};
 
 use futures::{
     future::{ready, Ready},
@@ -86,17 +86,24 @@ pub enum PushBack {
     Yes,
 }
 
-// impl<T: FromStr + Send> Arg for T
-// where
-//     <Self as FromStr>::Err: std::error::Error + Send + Sync + 'static,
-// {
-//     type Err = <Self as FromStr>::Err;
-//     type Fut = Ready<Result<(Self, PushBack), Self::Err>>;
+macro_rules! from_str_arg_impl {
+    ($t:ty) => {
+        impl Arg for $t
+        where
+            Self: FromStr + Send,
+            <Self as FromStr>::Err: std::error::Error + Send + Sync + 'static,
+        {
+            type Err = <Self as FromStr>::Err;
+            type Fut = Ready<Result<(Self, PushBack), Self::Err>>;
 
-//     fn parse_arg(_ctx: &FwContext, _msg: &Msg, s: &str) -> Self::Fut {
-//         ready(s.parse::<T>().map(|it| (it, PushBack::No)))
-//     }
-// }
+            fn parse_arg(_ctx: &FwContext, _msg: &Msg, s: &str) -> Self::Fut {
+                ready(s.parse::<Self>().map(|it| (it, PushBack::No)))
+            }
+        }
+    };
+}
+
+from_str_arg_impl!(rusty_ulid::Ulid);
 
 impl Arg for String {
     type Err = Infallible;

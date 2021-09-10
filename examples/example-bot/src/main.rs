@@ -60,6 +60,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .command(|| Command::new("stat_channel", stat_channel as CommandCodeFn))
                 .command(|| Command::new("ban_perm_test", ban_perm_test as CommandCodeFn))
                 .command(|| Command::new("requires_ban_perm", requires_ban_perm as CommandCodeFn))
+                .command(|| Command::new("ulid_timestamp", ulid_timestamp as CommandCodeFn))
         })
         .normal_message(normal_message as NormalMessageHandlerCodeFn)
         .after(after_handler as AfterHandlerCodeFn);
@@ -119,6 +120,16 @@ async fn stat_user(
 ) -> CommandResult {
     message.reply(ctx, format!("{:?}", user)).await?;
 
+    Ok(())
+}
+
+#[command]
+async fn ulid_timestamp(
+    ctx: &FwContext,
+    message: &Message,
+    Args((ulid,)): Args<(rusty_ulid::Ulid,)>,
+) -> CommandResult {
+    message.reply(ctx, ulid.datetime().to_string()).await?;
     Ok(())
 }
 
