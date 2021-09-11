@@ -384,8 +384,8 @@ where
         match event {
             ServerToClientEvent::Error { error } => tracing::error!("Error: {}", error),
             ServerToClientEvent::Authenticated => {}
-            ServerToClientEvent::Pong { time } => {
-                tracing::debug!("Got a pong from the server, time: {}", time)
+            ServerToClientEvent::Pong { data } => {
+                tracing::debug!("Got a pong from the server, time: {}", data)
             }
             ServerToClientEvent::Ready { event } => self.0.on_ready(ctx, event).await,
             ServerToClientEvent::Message { message } => self.0.on_message(ctx, message).await,

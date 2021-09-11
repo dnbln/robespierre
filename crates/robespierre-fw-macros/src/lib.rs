@@ -55,13 +55,13 @@ impl<'a> ToTokens for ExtraArgs<'a> {
 //         // ...
 //     }
 // Output:
-//     async fn __cmd_impl(ctx: &FwContext, message: &Message, RawArgs(args): RawArgs) -> CommandResult {
-//         // ...
-//     }
-//     fn cmd<'a>(ctx: &'a ::robespierre::framework::standard::FwContext, message: &'a ::robespierre_models::channel::Message, args: &'a str) -> ::std::pin::Pin<::std::boxed::Box<dyn ::robespierre::futures::Future<Output = ::robespierre::framework::standard::CommandResult> + Send + 'a>>> {
-//         ::std::boxed::Box::pin(async move {
-//             let __message = ::robespierre::framework::standard::extractors::Msg {message: ::std::sync::Arc::new(message.clone()), args: ::std::sync::Arc::new(args.to_string())};
-//             __cmd_impl(ctx, message, args, <RawArgs as ::robespierre::framework::standard::extractors::FromMessage>::from_message(ctx.clone(), __message.clone()).await?, ).await
+//     fn cmd<'a>(ctx: &'a FwContext, message: &'a Arc<Message>, args: &'a str) -> Pin<Box<dyn Future<Output = CommandResult> + Send + 'a>>> {
+//         async fn __cmd_impl(ctx: &FwContext, message: &Message, RawArgs(args): RawArgs) -> CommandResult {
+//             // ...
+//         }
+//         Box::pin(async move {
+//             let __message = Msg {message: Arc::clone(message), args: Arc::new(args.to_string())};
+//             __cmd_impl(ctx, message, <RawArgs as FromMessage>::from_message(ctx.clone(), __message.clone()).await?, /* other extractors if present */).await
 //         })
 //     }
 #[proc_macro_attribute]

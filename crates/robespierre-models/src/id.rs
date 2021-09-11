@@ -50,8 +50,8 @@ impl IdString {
         Self(s.as_bytes().try_into().unwrap())
     }
 
-    /// Gets the timestamp the object identified by this id was created at.
-    pub fn timestamp(&self) -> chrono::DateTime<chrono::Utc> {
+    /// Gets the time the object identified by this id was created at.
+    pub fn datetime(&self) -> chrono::DateTime<chrono::Utc> {
         let ulid = self.as_ref().parse::<rusty_ulid::Ulid>().unwrap();
 
         ulid.datetime()
@@ -150,8 +150,8 @@ impl<'a> PartialOrd<&'a str> for IdString {
 macro_rules! id_impl {
     ($name:ident) => {
         impl $name {
-            pub fn timestamp(&self) -> chrono::DateTime<chrono::Utc> {
-                self.0.timestamp()
+            pub fn datetime(&self) -> chrono::DateTime<chrono::Utc> {
+                self.0.datetime()
             }
         }
 
@@ -304,6 +304,7 @@ impl FromStr for AttachmentId {
 impl<'a> From<&'a str> for AttachmentId {
     fn from(s: &'a str) -> Self {
         let len = s.len();
+        assert!(len <= 128);
         let mut buf = [0; 128];
         buf[..len].copy_from_slice(s.as_bytes());
 

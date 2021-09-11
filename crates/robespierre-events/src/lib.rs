@@ -229,8 +229,7 @@ impl Connection {
 impl ConnectionInternal {
     async fn hb(&mut self) -> Result {
         self.send_event(ClientToServerEvent::Ping {
-            time: 0,
-            data: (0,),
+            data: 0,
         })
         .await?;
 

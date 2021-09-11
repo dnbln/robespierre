@@ -31,9 +31,7 @@ pub enum ClientToServerEvent {
         channel: ChannelId,
     },
     Ping {
-        time: u32,
-        #[deprecated(note = "Temporary fix for temporary issue")]
-        data: (u8,),
+        data: u32,
     },
 }
 
@@ -55,7 +53,7 @@ pub enum ServerToClientEvent {
     },
     Authenticated,
     Pong {
-        time: u32,
+        data: u32,
     },
     Ready {
         #[serde(flatten)]
