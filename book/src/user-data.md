@@ -14,7 +14,7 @@ use robespierre::FrameworkWrap;
 use robespierre_cache::CacheConfig;
 use robespierre_events::Connection;
 use robespierre_http::Http;
-use robespierre_models::channel::Message;
+use robespierre_models::channels::Message;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -73,7 +73,7 @@ Specifically this line is of interest:
 # use robespierre_cache::CacheConfig;
 # use robespierre_events::Connection;
 # use robespierre_http::Http;
-# use robespierre_models::channel::Message;
+# use robespierre_models::channels::Message;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -140,7 +140,7 @@ use std::sync::atomic::AtomicUsize;
 # use robespierre_cache::CacheConfig;
 # use robespierre_events::Connection;
 # use robespierre_http::Http;
-# use robespierre_models::channel::Message;
+# use robespierre_models::channels::Message;
 
 struct CommandCounterKey;
 
@@ -207,7 +207,7 @@ And add it to the map:
 # use robespierre_cache::CacheConfig;
 # use robespierre_events::Connection;
 # use robespierre_http::Http;
-# use robespierre_models::channel::Message;
+# use robespierre_models::channels::Message;
 
 # struct CommandCounterKey;
 # 
@@ -277,7 +277,7 @@ use robespierre::UserData;
 # use robespierre_cache::CacheConfig;
 # use robespierre_events::Connection;
 # use robespierre_http::Http;
-# use robespierre_models::channel::Message;
+# use robespierre_models::channels::Message;
 
 # struct CommandCounterKey;
 # 
@@ -352,7 +352,7 @@ And finally, let's add another command to display the counter:
 # use robespierre_cache::CacheConfig;
 # use robespierre_events::Connection;
 # use robespierre_http::Http;
-# use robespierre_models::channel::Message;
+# use robespierre_models::channels::Message;
 
 # struct CommandCounterKey;
 # 

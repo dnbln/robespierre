@@ -6,16 +6,15 @@ use reqwest::{
     RequestBuilder,
 };
 use robespierre_models::{
-    attachments::Attachment,
-    autumn::AutumnTag,
-    channel::{
+    autumn::{Attachment, AttachmentId, AttachmentTag},
+    channels::{
         Channel, ChannelField, ChannelInviteCode, ChannelPermissions, CreateChannelInviteResponse,
-        DmChannel, Message, MessageFilter, ReplyData, ServerChannelType,
+        Message, MessageFilter, ReplyData, ServerChannelType,
     },
-    id::{AttachmentId, ChannelId, MessageId, RoleId, ServerId, UserId},
-    instance_data::RevoltInstanceData,
-    server::{Ban, Member, MemberField, PartialMember, PartialServer, Server, ServerField},
-    user::{NewRelationshipResponse, Relationship, User, UserEditPatch, UserProfileData},
+    core::RevoltConfiguration,
+    id::{ChannelId, MessageId, RoleId, ServerId, UserId},
+    servers::{Ban, Member, MemberField, PartialMember, PartialServer, Server, ServerField},
+    users::{Profile, Relationship, RelationshipStatus, User, UserEditPatch},
 };
 
 use crate::utils::{PermissionsUpdateRequest, SendMessageRequest};
@@ -83,42 +82,60 @@ impl AuthExt for HeaderMap {
 /// An instance of a client to the REST API
 pub struct Http {
     client: reqwest::Client,
-    instance_data: RevoltInstanceData,
+    api_root: String,
+    revolt_config: RevoltConfiguration,
 }
 
-const ROOT_LINK: &str = "https://api.revolt.chat";
-
 macro_rules! ep {
-    ($ep:literal $($args:tt)*) => {
-        format!(concat!("{}", $ep), ROOT_LINK, $($args)*)
+    ($self:expr, $ep:literal $($args:tt)*) => {
+        format!(concat!("{}", $ep), $self.api_root, $($args)*)
     }
 }
 
 macro_rules! autumn_tag_upload {
     ($self:expr, $tag:expr) => {
-        format!("{}/{}", $self.instance_data.features.autumn.url(), $tag)
+        format!("{}/{}", $self.revolt_config.features.autumn.url(), $tag)
     };
 }
 
 impl Http {
     /// Creates a new client from the authentication
     pub async fn new<'auth>(auth: impl Into<HttpAuthentication<'auth>>) -> Result<Self> {
+        Self::new_with_url(auth, "https://api.revolt.chat").await
+    }
+
+    /// Creates a new client from the authentication and url.
+    ///
+    /// Use this if using a self hosted instance of revolt, otherwise use [Self::new].
+    pub async fn new_with_url<'auth>(
+        auth: impl Into<HttpAuthentication<'auth>>,
+        api_root: &str,
+    ) -> Result<Self> {
         let mut default_headers = HeaderMap::new().auth(&auth.into());
         default_headers.insert(reqwest::header::ACCEPT, HeaderValue::from_static("*/*"));
         let client = reqwest::Client::builder()
             .default_headers(default_headers)
             .build()
             .unwrap();
-        let instance_data = Self::get_instance_data(&client).await?;
+        let revolt_config = Self::get_revolt_config(&client, api_root).await?;
         Ok(Self {
             client,
-            instance_data,
+            api_root: api_root.to_string(),
+            revolt_config,
         })
     }
 
-    async fn get_instance_data(client: &reqwest::Client) -> Result<RevoltInstanceData> {
+    /// Gets the websocket url
+    pub fn get_ws_url(&self) -> &str {
+        &self.revolt_config.ws
+    }
+
+    async fn get_revolt_config(
+        client: &reqwest::Client,
+        root_url: &str,
+    ) -> Result<RevoltConfiguration> {
         Ok(client
-            .get(ep!("/"))
+            .get(root_url)
             .send()
             .await?
             .error_for_status()?
@@ -130,7 +147,7 @@ impl Http {
     pub async fn fetch_user(&self, user_id: UserId) -> Result<User> {
         Ok(self
             .client
-            .get(ep!("/users/{}" user_id))
+            .get(ep!(self, "/users/{}" user_id))
             .send()
             .await?
             .error_for_status()?
@@ -141,7 +158,7 @@ impl Http {
     /// Edits an user
     pub async fn edit_user(&self, patch: UserEditPatch) -> Result {
         self.client
-            .patch(ep!("/users/@me"))
+            .patch(ep!(self, "/users/@me"))
             .json(&patch)
             .send()
             .await?
@@ -151,10 +168,10 @@ impl Http {
     }
 
     /// Gets information abot an user profile
-    pub async fn fetch_user_profile(&self, user_id: UserId) -> Result<UserProfileData> {
+    pub async fn fetch_user_profile(&self, user_id: UserId) -> Result<Profile> {
         Ok(self
             .client
-            .get(ep!("/users/{}/profile" user_id))
+            .get(ep!(self, "/users/{}/profile" user_id))
             .send()
             .await?
             .error_for_status()?
@@ -163,10 +180,10 @@ impl Http {
     }
 
     /// Gets dm channels / groups.
-    pub async fn fetch_dm_channels(&self) -> Result<Vec<DmChannel>> {
+    pub async fn fetch_dm_channels(&self) -> Result<Vec<Channel>> {
         Ok(self
             .client
-            .get(ep!("/users/dms"))
+            .get(ep!(self, "/users/dms"))
             .send()
             .await?
             .error_for_status()?
@@ -175,10 +192,10 @@ impl Http {
     }
 
     /// Opens a dm with user
-    pub async fn open_dm(&self, user_id: UserId) -> Result<DmChannel> {
+    pub async fn open_dm(&self, user_id: UserId) -> Result<Channel> {
         Ok(self
             .client
-            .get(ep!("/users/{}/dm" user_id))
+            .get(ep!(self, "/users/{}/dm" user_id))
             .send()
             .await?
             .error_for_status()?
@@ -190,7 +207,7 @@ impl Http {
     pub async fn fetch_relationships(&self) -> Result<Vec<Relationship>> {
         Ok(self
             .client
-            .get(ep!("/users/relationships"))
+            .get(ep!(self, "/users/relationships"))
             .send()
             .await?
             .error_for_status()?
@@ -202,7 +219,7 @@ impl Http {
     pub async fn fetch_relationship(&self, user_id: UserId) -> Result<Relationship> {
         Ok(self
             .client
-            .get(ep!("/users/{}/relationship" user_id))
+            .get(ep!(self, "/users/{}/relationship" user_id))
             .send()
             .await?
             .error_for_status()?
@@ -214,7 +231,7 @@ impl Http {
     pub async fn send_friend_request(&self, username: &str) -> Result<NewRelationshipResponse> {
         Ok(self
             .client
-            .put(ep!("/users/{}/friend" username))
+            .put(ep!(self, "/users/{}/friend" username))
             .send()
             .await?
             .error_for_status()?
@@ -226,7 +243,7 @@ impl Http {
     pub async fn deny_friend_request(&self, username: &str) -> Result<NewRelationshipResponse> {
         Ok(self
             .client
-            .delete(ep!("/users/{}/friend" username))
+            .delete(ep!(self, "/users/{}/friend" username))
             .send()
             .await?
             .error_for_status()?
@@ -238,7 +255,7 @@ impl Http {
     pub async fn block(&self, user_id: UserId) -> Result<NewRelationshipResponse> {
         Ok(self
             .client
-            .put(ep!("/users/{}/block" user_id))
+            .put(ep!(self, "/users/{}/block" user_id))
             .send()
             .await?
             .error_for_status()?
@@ -250,7 +267,7 @@ impl Http {
     pub async fn unblock(&self, user_id: UserId) -> Result<NewRelationshipResponse> {
         Ok(self
             .client
-            .delete(ep!("/users/{}/block" user_id))
+            .delete(ep!(self, "/users/{}/block" user_id))
             .send()
             .await?
             .error_for_status()?
@@ -262,7 +279,7 @@ impl Http {
     pub async fn fetch_channel(&self, channel_id: ChannelId) -> Result<Channel> {
         Ok(self
             .client
-            .get(ep!("/channels/{}" channel_id))
+            .get(ep!(self, "/channels/{}" channel_id))
             .send()
             .await?
             .error_for_status()?
@@ -292,7 +309,7 @@ impl Http {
         }
 
         self.client
-            .patch(ep!("/channels/{}" channel_id))
+            .patch(ep!(self, "/channels/{}" channel_id))
             .json(&PatchChannelRequest {
                 name,
                 description,
@@ -309,7 +326,7 @@ impl Http {
     /// Closes a channel / leaves group
     pub async fn close_channel(&self, channel_id: ChannelId) -> Result {
         self.client
-            .delete(ep!("/channels/{}" channel_id))
+            .delete(ep!(self, "/channels/{}" channel_id))
             .send()
             .await?
             .error_for_status()?;
@@ -324,7 +341,7 @@ impl Http {
     ) -> Result<CreateChannelInviteResponse> {
         Ok(self
             .client
-            .post(ep!("/channels/{}/invites" channel_id))
+            .post(ep!(self, "/channels/{}/invites" channel_id))
             .send()
             .await?
             .error_for_status()?
@@ -340,7 +357,7 @@ impl Http {
         permissions: ChannelPermissions,
     ) -> Result {
         self.client
-            .put(ep!("/channels/{}/permissions/{}" channel_id, role_id))
+            .put(ep!(self, "/channels/{}/permissions/{}" channel_id, role_id))
             .json(&PermissionsUpdateRequest { permissions })
             .send()
             .await?
@@ -356,7 +373,7 @@ impl Http {
         permissions: ChannelPermissions,
     ) -> Result {
         self.client
-            .put(ep!("/channels/{}/permissions/default" channel_id))
+            .put(ep!(self, "/channels/{}/permissions/default" channel_id))
             .json(&PermissionsUpdateRequest { permissions })
             .send()
             .await?
@@ -376,7 +393,7 @@ impl Http {
     ) -> Result<Message> {
         Ok(self
             .client
-            .post(ep!("/channels/{}/messages" channel_id))
+            .post(ep!(self, "/channels/{}/messages" channel_id))
             .json(&SendMessageRequest {
                 content: content.as_ref(),
                 nonce: nonce.as_ref(),
@@ -398,7 +415,7 @@ impl Http {
     ) -> Result<FetchMessagesResult> {
         let v = self
             .client
-            .get(ep!("/channels/{}/messages" channel))
+            .get(ep!(self, "/channels/{}/messages" channel))
             .json(&filter)
             .send()
             .await?
@@ -421,7 +438,7 @@ impl Http {
     pub async fn fetch_message(&self, channel: ChannelId, message: MessageId) -> Result<Message> {
         Ok(self
             .client
-            .get(ep!("/channels/{}/messages/{}" channel, message))
+            .get(ep!(self, "/channels/{}/messages/{}" channel, message))
             .send()
             .await?
             .error_for_status()?
@@ -441,7 +458,7 @@ impl Http {
             content: &'a str,
         }
         self.client
-            .patch(ep!("/channels/{}/messages/{}" channel, message))
+            .patch(ep!(self, "/channels/{}/messages/{}" channel, message))
             .json(&MessagePatch { content })
             .send()
             .await?
@@ -452,7 +469,7 @@ impl Http {
     /// Deletes a message
     pub async fn delete_message(&self, channel: ChannelId, message: MessageId) -> Result {
         self.client
-            .delete(ep!("/channels/{}/messages/{}" channel, message))
+            .delete(ep!(self, "/channels/{}/messages/{}" channel, message))
             .send()
             .await?
             .error_for_status()?;
@@ -478,7 +495,7 @@ impl Http {
         }
         Ok(self
             .client
-            .post(ep!("/channels/create"))
+            .post(ep!(self, "/channels/create"))
             .json(&CreateGroupRequest {
                 name,
                 description,
@@ -496,7 +513,7 @@ impl Http {
     pub async fn fetch_group_members(&self, group: ChannelId) -> Result<Vec<User>> {
         Ok(self
             .client
-            .get(ep!("/channels/{}/members" group))
+            .get(ep!(self, "/channels/{}/members" group))
             .send()
             .await?
             .error_for_status()?
@@ -510,7 +527,7 @@ impl Http {
     pub async fn fetch_server(&self, server: ServerId) -> Result<Server> {
         Ok(self
             .client
-            .get(ep!("/servers/{}" server))
+            .get(ep!(self, "/servers/{}" server))
             .send()
             .await?
             .error_for_status()?
@@ -533,7 +550,7 @@ impl Http {
         }
 
         self.client
-            .patch(ep!("/servers/{}" server_id))
+            .patch(ep!(self, "/servers/{}" server_id))
             .json(&ServerPatchRequest { server, remove })
             .send()
             .await?
@@ -545,7 +562,7 @@ impl Http {
     /// Deletes a server
     pub async fn delete_server(&self, server_id: ServerId) -> Result {
         self.client
-            .delete(ep!("/servers/{}" server_id))
+            .delete(ep!(self, "/servers/{}" server_id))
             .send()
             .await?
             .error_for_status()?;
@@ -569,7 +586,7 @@ impl Http {
         }
         Ok(self
             .client
-            .post(ep!("/servers/create"))
+            .post(ep!(self, "/servers/create"))
             .json(&CreateServerRequest {
                 name,
                 description,
@@ -602,7 +619,7 @@ impl Http {
         }
 
         self.client
-            .post(ep!("/servers/{}/channels" server))
+            .post(ep!(self, "/servers/{}/channels" server))
             .json(&CreateServerChannelRequest {
                 kind,
                 name,
@@ -620,7 +637,7 @@ impl Http {
     pub async fn fetch_invites(&self, server: ServerId) -> Result<Vec<FetchInviteResult>> {
         Ok(self
             .client
-            .get(ep!("/servers/{}/invites" server))
+            .get(ep!(self, "/servers/{}/invites" server))
             .send()
             .await?
             .error_for_status()?
@@ -631,7 +648,7 @@ impl Http {
     /// Marks server as read
     pub async fn mark_server_as_read(&self, server: ServerId) -> Result {
         self.client
-            .put(ep!("/servers/{}/ack" server))
+            .put(ep!(self, "/servers/{}/ack" server))
             .send()
             .await?
             .error_for_status()?;
@@ -642,7 +659,7 @@ impl Http {
     pub async fn fetch_member(&self, server_id: ServerId, user_id: UserId) -> Result<Member> {
         Ok(self
             .client
-            .get(ep!("/servers/{}/members/{}" server_id, user_id))
+            .get(ep!(self, "/servers/{}/members/{}" server_id, user_id))
             .send()
             .await?
             .error_for_status()?
@@ -665,7 +682,7 @@ impl Http {
             remove: MemberField,
         }
         self.client
-            .patch(ep!("/servers/{}/members/{}" server_id, user_id))
+            .patch(ep!(self, "/servers/{}/members/{}" server_id, user_id))
             .json(&PatchMemberRequest { member, remove })
             .send()
             .await?
@@ -676,7 +693,7 @@ impl Http {
     /// Kicks member out of server
     pub async fn kick_member(&self, server_id: ServerId, user_id: UserId) -> Result {
         self.client
-            .delete(ep!("/servers/{}/members/{}" server_id, user_id))
+            .delete(ep!(self, "/servers/{}/members/{}" server_id, user_id))
             .send()
             .await?
             .error_for_status()?;
@@ -688,7 +705,7 @@ impl Http {
     pub async fn fetch_all_members(&self, server_id: ServerId) -> Result<FetchMembersResult> {
         Ok(self
             .client
-            .get(ep!("/servers/{}/members" server_id))
+            .get(ep!(self, "/servers/{}/members" server_id))
             .send()
             .await?
             .error_for_status()?
@@ -709,7 +726,7 @@ impl Http {
             reason: Option<&'a str>,
         }
         self.client
-            .put(ep!("/servers/{}/bans/{}" server_id, user_id))
+            .put(ep!(self, "/servers/{}/bans/{}" server_id, user_id))
             .json(&BanRequest { reason })
             .send()
             .await?
@@ -721,7 +738,7 @@ impl Http {
     /// Unbans an user from the server
     pub async fn unban_user(&self, server_id: ServerId, user_id: UserId) -> Result {
         self.client
-            .delete(ep!("/servers/{}/bans/{}" server_id, user_id))
+            .delete(ep!(self, "/servers/{}/bans/{}" server_id, user_id))
             .send()
             .await?
             .error_for_status()?;
@@ -733,7 +750,7 @@ impl Http {
     pub async fn fetch_bans(&self, server_id: ServerId) -> Result<FetchBansResult> {
         Ok(self
             .client
-            .get(ep!("/servers/{}/bans" server_id))
+            .get(ep!(self, "/servers/{}/bans" server_id))
             .send()
             .await?
             .error_for_status()?
@@ -750,7 +767,7 @@ impl Http {
     /// Uploads a file to autumn, returning the [`AttachmentId`]
     pub async fn upload_autumn(
         &self,
-        tag: AutumnTag,
+        tag: AttachmentTag,
         name: String,
         bytes: Vec<u8>,
     ) -> Result<AttachmentId> {
@@ -820,10 +837,15 @@ pub enum FetchInviteResult {
     },
 }
 
+#[derive(serde::Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+pub struct NewRelationshipResponse {
+    pub status: RelationshipStatus,
+}
+
 mod utils {
     use robespierre_models::{
-        channel::{ChannelPermissions, ReplyData},
-        id::AttachmentId,
+        autumn::AttachmentId,
+        channels::{ChannelPermissions, ReplyData},
     };
 
     use serde::Serialize;

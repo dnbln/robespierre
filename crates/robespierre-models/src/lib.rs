@@ -1,11 +1,14 @@
 #![allow(clippy::large_enum_variant)]
 
-pub mod attachments;
+pub mod auth;
 pub mod autumn;
-pub mod channel;
+pub mod bot;
+pub mod channels;
+pub mod core;
 pub mod events;
 pub mod id;
-pub mod instance_data;
+pub mod invites;
+pub mod january;
 pub mod permissions_utils;
-pub mod server;
-pub mod user;
+pub mod servers;
+pub mod users;

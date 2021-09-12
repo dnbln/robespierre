@@ -10,9 +10,10 @@ use std::{
 #[cfg(feature = "cache")]
 use robespierre_cache::{Cache, HasCache};
 use robespierre_models::{
-    channel::{ChannelPermissions, Message, MessageContent},
+    channels::Channel,
+    channels::{ChannelPermissions, Message, MessageContent},
     id::UserId,
-    server::ServerPermissions,
+    servers::ServerPermissions,
 };
 
 use crate::{
@@ -328,9 +329,8 @@ async fn check_perms<'a>(
     let channel = message.channel(ctx).await?;
 
     match &channel {
-        robespierre_models::channel::Channel::SavedMessages { .. }
-        | robespierre_models::channel::Channel::DirectMessage { .. } => Ok::<_, CommandError>(()),
-        ch @ robespierre_models::channel::Channel::Group { .. } => {
+        Channel::SavedMessages(..) | Channel::DirectMessage(..) => Ok::<_, CommandError>(()),
+        ch @ Channel::Group(..) => {
             let check = robespierre_models::permissions_utils::user_has_permissions_in_group(
                 message.author,
                 ch,
@@ -343,8 +343,7 @@ async fn check_perms<'a>(
                 Err(MissingPermissions(ServerPermissions::empty(), cp).into())
             }
         }
-        ch @ robespierre_models::channel::Channel::TextChannel { .. }
-        | ch @ robespierre_models::channel::Channel::VoiceChannel { .. } => {
+        ch @ Channel::TextChannel { .. } | ch @ Channel::VoiceChannel { .. } => {
             let server = ch.server_id().unwrap();
             let member = server.member(ctx, message.author).await?;
             let server = server.server(ctx).await?;

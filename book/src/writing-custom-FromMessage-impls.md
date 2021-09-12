@@ -19,7 +19,7 @@ Let's say we want to get the whole message content:
 # 
 # use robespierre::framework::standard::{FwContext, CommandResult, CommandError};
 # use robespierre::framework::standard::extractors::{Msg, FromMessage};
-use robespierre_models::channel::MessageContent;
+use robespierre_models::channels::MessageContent;
 
 # #[tokio::main]
 # async fn main() {}
@@ -54,8 +54,8 @@ And then everything you have to do is use it:
 # use robespierre::framework::standard::extractors::{Msg, FromMessage};
 use robespierre::framework::standard::macros::{command};
 use robespierre::model::MessageExt;
-# use robespierre_models::channel::MessageContent;
-use robespierre_models::channel::Message;
+# use robespierre_models::channels::MessageContent;
+use robespierre_models::channels::Message;
 
 # #[tokio::main]
 # async fn main() {}

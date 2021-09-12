@@ -11,7 +11,7 @@ fn main() {
 
 mod module {
     use robespierre::framework::standard::{macros::command, CommandResult, FwContext};
-    use robespierre_models::channel::Message;
+    use robespierre_models::channels::Message;
 
     #[command]
     pub async fn command(_ctx: &FwContext, _msg: &Message) -> CommandResult {

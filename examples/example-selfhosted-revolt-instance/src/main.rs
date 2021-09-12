@@ -1,4 +1,6 @@
 // src/main.rs
+//! `ping-reply-pong`, but connecting to a self hosted instance of revolt.
+
 use robespierre::model::MessageExt;
 use robespierre::Authentication;
 use robespierre::CacheWrap;
@@ -11,14 +13,19 @@ use robespierre_models::channels::Message;
 use robespierre_models::channels::MessageContent;
 use robespierre_models::events::ReadyEvent;
 
+const API_ROOT_URL: &str = "https://api.myrevoltinstance.chat"; // without the /
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
     let token = std::env::var("TOKEN")
         .expect("Cannot get token; set environment variable TOKEN=... and run again");
     let auth = Authentication::bot(token);
-    let http = Http::new(&auth).await?;
-    let connection = Connection::connect(&auth).await?;
+
+    // call Http::new_with_url and Connection::connect_with_url instead of Http::new and Connection::connect
+    let http = Http::new_with_url(&auth, API_ROOT_URL).await?;
+    let connection = Connection::connect_with_url(&auth, http.get_ws_url()).await?;
+
     let context = Context::new(http, robespierre::typemap::ShareMap::custom())
         .with_cache(CacheConfig::default());
     let handler = Handler;

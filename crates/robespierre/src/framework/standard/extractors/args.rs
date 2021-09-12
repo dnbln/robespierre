@@ -5,9 +5,9 @@ use futures::{
     Future,
 };
 use robespierre_models::{
-    channel::Channel,
+    channels::Channel,
     id::{ChannelId, IdStringDeserializeError, UserId},
-    user::User,
+    users::User,
 };
 
 use crate::{

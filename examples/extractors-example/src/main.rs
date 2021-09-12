@@ -10,8 +10,8 @@ use robespierre::FrameworkWrap;
 use robespierre_cache::CacheConfig;
 use robespierre_events::Connection;
 use robespierre_http::Http;
-use robespierre_models::channel::{Channel, Message};
-use robespierre_models::user::User;
+use robespierre_models::channels::{Channel, Message};
+use robespierre_models::users::User;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

@@ -1,13 +1,13 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    channel::{Channel, ChannelField, Message, PartialChannel, PartialMessage},
+    channels::{Channel, ChannelField, Message, PartialChannel, PartialMessage},
     id::{ChannelId, MemberId, MessageId, RoleId, ServerId, UserId},
-    server::{
+    servers::{
         Member, MemberField, PartialMember, PartialRole, PartialServer, RoleField, Server,
         ServerField,
     },
-    user::{PartialUser, RelationshipStatus, User, UserField},
+    users::{PartialUser, RelationshipStatus, User, UserField},
 };
 
 /// Any message the client can send to the server.
@@ -151,4 +151,8 @@ pub enum ServerToClientEvent {
         user: UserId,
         status: RelationshipStatus,
     },
+}
+
+pub trait HasWsUrl {
+    fn get_ws_url(&self) -> &str;
 }

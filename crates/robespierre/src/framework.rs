@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use robespierre_models::channel::Message;
+use robespierre_models::channels::Message;
 
 pub mod standard;
 

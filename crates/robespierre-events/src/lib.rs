@@ -94,8 +94,18 @@ pub trait Context: Sized + Clone + Send + 'static {
 impl Connection {
     /// Connects to the websocket, and authenticates, returning the socket or an error if it failed.
     pub async fn connect<'a>(auth: impl Into<Authentication<'a>>) -> Result<Self> {
-        tracing::debug!("Connecting to websocket");
-        let (stream, _response) = connect_async("wss://ws.revolt.chat").await?;
+        Self::connect_with_url(auth, "wss://ws.revolt.chat").await
+    }
+
+    /// Connects to the websocket on the specified url, and authenticates, returning the socket or an error if it failed.
+    ///
+    /// Use if connecting to a self-hosted instance of revolt; otherwise use [Self::connect].
+    pub async fn connect_with_url<'a>(
+        auth: impl Into<Authentication<'a>>,
+        url: &str,
+    ) -> Result<Self> {
+        tracing::debug!("Connecting to websocket on {}", url);
+        let (stream, _response) = connect_async(url).await?;
         let mut internal = ConnectionInternal {
             stream,
             closed: false,
@@ -228,10 +238,8 @@ impl Connection {
 
 impl ConnectionInternal {
     async fn hb(&mut self) -> Result {
-        self.send_event(ClientToServerEvent::Ping {
-            data: 0,
-        })
-        .await?;
+        self.send_event(ClientToServerEvent::Ping { data: 0 })
+            .await?;
 
         Ok(())
     }

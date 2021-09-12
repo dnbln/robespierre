@@ -10,9 +10,9 @@ Let's say we want to implement a ban command:
 # use robespierre::framework::standard::{FwContext, CommandResult, macros::command};
 # use robespierre::framework::standard::extractors::{Args, AuthorMember, RawArgs, Rest};
 # use robespierre::model::MessageExt;
-# use robespierre_models::channel::Message;
-# use robespierre_models::server::ServerPermissions;
-# use robespierre_models::user::User;
+# use robespierre_models::channels::Message;
+# use robespierre_models::servers::ServerPermissions;
+# use robespierre_models::users::User;
 
 #[derive(thiserror::Error, Debug)]
 #[error("missing perms")]
@@ -48,10 +48,10 @@ and pass the `ChannelPermissions` you want to check + a reference to the channel
 # use robespierre::framework::standard::{FwContext, CommandResult, macros::command};
 # use robespierre::framework::standard::extractors::{Args, AuthorMember, RawArgs, Rest, RequiredPermissions};
 # use robespierre::model::MessageExt;
-# use robespierre_models::channel::Message;
-# use robespierre_models::channel::ChannelPermissions;
-# use robespierre_models::server::ServerPermissions;
-# use robespierre_models::user::User;
+# use robespierre_models::channels::Message;
+# use robespierre_models::channels::ChannelPermissions;
+# use robespierre_models::servers::ServerPermissions;
+# use robespierre_models::users::User;
 
 #[command]
 async fn ban(
@@ -75,9 +75,9 @@ In our example:
 # use robespierre::framework::standard::{FwContext, CommandResult, macros::command};
 # use robespierre::framework::standard::extractors::{Args, AuthorMember, RawArgs, Rest};
 # use robespierre::model::MessageExt;
-# use robespierre_models::channel::Message;
-# use robespierre_models::server::ServerPermissions;
-# use robespierre_models::user::User;
+# use robespierre_models::channels::Message;
+# use robespierre_models::servers::ServerPermissions;
+# use robespierre_models::users::User;
 # 
 use robespierre::framework::standard::extractors::RequiredServerPermissions;
 
@@ -108,9 +108,9 @@ async fn ban(
 # use robespierre_cache::CacheConfig;
 # use robespierre_events::Connection;
 # use robespierre_http::Http;
-# use robespierre_models::channel::Message;
-use robespierre_models::server::ServerPermissions;
-# use robespierre_models::user::User;
+# use robespierre_models::channels::Message;
+use robespierre_models::servers::ServerPermissions;
+# use robespierre_models::users::User;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

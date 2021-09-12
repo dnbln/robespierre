@@ -10,14 +10,14 @@ use async_trait::async_trait;
 use tokio::sync::RwLock;
 
 use robespierre_models::{
-    channel::{Channel, ChannelField, Message, PartialChannel, PartialMessage},
+    channels::{Channel, ChannelField, Message, PartialChannel, PartialMessage},
     events::ServerToClientEvent,
     id::{ChannelId, MemberId, MessageId, RoleId, ServerId, UserId},
-    server::{
+    servers::{
         Member, MemberField, PartialMember, PartialRole, PartialServer, RoleField, Server,
         ServerField,
     },
-    user::{PartialUser, User, UserField},
+    users::{PartialUser, User, UserField},
 };
 
 #[derive(Default)]

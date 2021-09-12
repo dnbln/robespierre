@@ -1,7 +1,7 @@
 /// Data about a revolt instance obtained by
 /// making a `GET /` on the api.
 #[derive(serde::Deserialize, Clone)]
-pub struct RevoltInstanceData {
+pub struct RevoltConfiguration {
     pub revolt: String,
     pub features: RevoltInstanceFeatures,
     pub ws: String,

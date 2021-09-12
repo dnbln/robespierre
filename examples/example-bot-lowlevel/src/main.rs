@@ -7,8 +7,8 @@ use robespierre_cache::{Cache, CacheConfig, CommitToCache, HasCache};
 use robespierre_events::{Authentication, Connection, RawEventHandler};
 use robespierre_http::{Http, HttpAuthentication};
 use robespierre_models::{
-    autumn::AutumnTag,
-    channel::{MessageContent, ReplyData},
+    autumn::AttachmentTag,
+    channels::{MessageContent, ReplyData},
 };
 
 #[tokio::main]
@@ -78,7 +78,7 @@ impl RawEventHandler for Handler {
                 let att_id = ctx
                     .0
                     .upload_autumn(
-                        AutumnTag::Attachments,
+                        AttachmentTag::Attachments,
                         "help".to_string(),
                         "help me".to_string().into_bytes(),
                     )

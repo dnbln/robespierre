@@ -22,11 +22,11 @@ use robespierre_events::{
 };
 use robespierre_http::{Http, HttpAuthentication, HttpError};
 use robespierre_models::{
-    channel::{Channel, ChannelField, Message, PartialChannel, PartialMessage},
+    channels::{Channel, ChannelField, Message, PartialChannel, PartialMessage},
     events::{ReadyEvent, ServerToClientEvent},
     id::{ChannelId, MemberId, MessageId, RoleId, ServerId, UserId},
-    server::{MemberField, PartialMember, PartialRole, PartialServer, RoleField, ServerField},
-    user::{PartialUser, RelationshipStatus, UserField},
+    servers::{MemberField, PartialMember, PartialRole, PartialServer, RoleField, ServerField},
+    users::{PartialUser, RelationshipStatus, UserField},
 };
 
 pub use async_trait::async_trait;

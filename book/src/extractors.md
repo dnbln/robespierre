@@ -18,8 +18,8 @@ with the result:
 # use robespierre::framework::standard::{FwContext, CommandResult, macros::command};
 # use robespierre::framework::standard::extractors::{Args, Author, RawArgs, Rest};
 # use robespierre::model::MessageExt;
-# use robespierre_models::channel::Message;
-# use robespierre_models::user::User;
+# use robespierre_models::channels::Message;
+# use robespierre_models::users::User;
 
 #[command]
 async fn stat_user(ctx: &FwContext, message: &Message,
@@ -36,7 +36,7 @@ Or a stat channel command:
 # use robespierre::framework::standard::{FwContext, CommandResult, macros::command};
 # use robespierre::framework::standard::extractors::{Args, Author, RawArgs, Rest};
 # use robespierre::model::MessageExt;
-# use robespierre_models::channel::{Message, Channel};
+# use robespierre_models::channels::{Message, Channel};
 
 #[command]
 async fn stat_channel(ctx: &FwContext, message: &Message,
@@ -55,7 +55,7 @@ Or a "repeat" command, which just echoes back the arguments
 # use robespierre::framework::standard::{FwContext, CommandResult, macros::command};
 # use robespierre::framework::standard::extractors::{Args, Author, RawArgs, Rest};
 # use robespierre::model::MessageExt;
-# use robespierre_models::channel::Message;
+# use robespierre_models::channels::Message;
 
 #[command]
 async fn repeat(ctx: &FwContext, message: &Message, Author(author): Author, RawArgs(args): RawArgs) -> CommandResult {
@@ -78,7 +78,7 @@ By default, the delimiter `Args` uses is ` `, but you can change it like:
 # use robespierre::framework::standard::{FwContext, CommandResult, macros::command};
 # use robespierre::framework::standard::extractors::{Args, Author, RawArgs, Rest};
 # use robespierre::model::MessageExt;
-# use robespierre_models::channel::Message;
+# use robespierre_models::channels::Message;
 
 #[command]
 async fn repeat_with_spaces(
@@ -208,8 +208,8 @@ use robespierre::FrameworkWrap;
 use robespierre_cache::CacheConfig;
 use robespierre_events::Connection;
 use robespierre_http::Http;
-use robespierre_models::user::User;
-use robespierre_models::channel::{Channel, Message};
+use robespierre_models::users::User;
+use robespierre_models::channels::{Channel, Message};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

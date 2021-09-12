@@ -1,9 +1,9 @@
 use std::{borrow::Cow, future::Future, pin::Pin, sync::Arc};
 
 use robespierre_models::{
-    channel::{ChannelPermissions, Message},
-    server::{Member, ServerPermissions},
-    user::User,
+    channels::{ChannelPermissions, Message},
+    servers::{Member, ServerPermissions},
+    users::User,
 };
 
 use crate::model::{MessageExt, ServerIdExt};

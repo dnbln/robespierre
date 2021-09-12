@@ -21,11 +21,11 @@ use robespierre::{Authentication, CacheHttp, CacheWrap, FrameworkWrap, UserData}
 use robespierre_cache::CacheConfig;
 use robespierre_events::Connection;
 use robespierre_http::Http;
-use robespierre_models::autumn::AutumnTag;
-use robespierre_models::channel::{Channel, Message, MessageContent, ReplyData};
+use robespierre_models::autumn::AttachmentTag;
+use robespierre_models::channels::{Channel, Message, MessageContent, ReplyData};
 use robespierre_models::id::{ChannelId, ServerId, UserId};
-use robespierre_models::server::ServerPermissions;
-use robespierre_models::user::User;
+use robespierre_models::servers::ServerPermissions;
+use robespierre_models::users::User;
 
 struct CommandCounter;
 impl robespierre::typemap::Key for CommandCounter {
@@ -248,7 +248,7 @@ async fn normal_message_impl(ctx: &FwContext, message: &Message) {
     let att_id = ctx
         .http()
         .upload_autumn(
-            AutumnTag::Attachments,
+            AttachmentTag::Attachments,
             "help".to_string(),
             "help me".to_string().into_bytes(),
         )

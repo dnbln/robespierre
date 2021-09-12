@@ -1,7 +1,9 @@
 use crate::{
-    channel::{Channel, ChannelPermissions},
+    channels::{
+        Channel, ChannelPermissions, GroupChannel, ServerChannel, TextChannel, VoiceChannel,
+    },
     id::{RoleId, UserId},
-    server::{Member, Role, Server, ServerPermissions},
+    servers::{Member, Role, Server, ServerPermissions},
 };
 
 fn perms_or(server: &Server, roles: &[RoleId]) -> (ServerPermissions, ChannelPermissions) {
@@ -23,16 +25,24 @@ fn perms_or_in_channel(
     let base = perms_or(server, roles);
 
     match channel {
-        Channel::TextChannel {
-            default_permissions,
-            role_permissions,
+        Channel::TextChannel(TextChannel {
+            server_channel:
+                ServerChannel {
+                    default_permissions,
+                    role_permissions,
+                    ..
+                },
             ..
-        }
-        | Channel::VoiceChannel {
-            default_permissions,
-            role_permissions,
+        })
+        | Channel::VoiceChannel(VoiceChannel {
+            server_channel:
+                ServerChannel {
+                    default_permissions,
+                    role_permissions,
+                    ..
+                },
             ..
-        } => {
+        }) => {
             let new = (
                 base.0,
                 base.1 | default_permissions.unwrap_or(ChannelPermissions::empty()),
@@ -88,9 +98,9 @@ pub fn user_has_permissions_in_group(
     check_permissions: ChannelPermissions,
 ) -> bool {
     match group {
-        Channel::Group {
+        Channel::Group(GroupChannel {
             owner, permissions, ..
-        } => {
+        }) => {
             if user == *owner {
                 // owner has all perms
                 return true;

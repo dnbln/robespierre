@@ -3,10 +3,11 @@ use robespierre_cache::CommitToCache;
 #[cfg(feature = "events")]
 use robespierre_events::typing::TypingSession;
 use robespierre_models::{
-    channel::{Channel, Message, ReplyData},
-    id::{AttachmentId, ChannelId, MemberId, ServerId, UserId},
-    server::{Member, Server},
-    user::User,
+    autumn::AttachmentId,
+    channels::{Channel, Message, ReplyData},
+    id::{ChannelId, MemberId, ServerId, UserId},
+    servers::{Member, Server},
+    users::User,
 };
 
 use crate::{CacheHttp, Context, HasHttp, Result};

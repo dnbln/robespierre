@@ -1,6 +1,6 @@
 use std::{
     cmp::Ordering,
-    convert::{Infallible, TryFrom, TryInto},
+    convert::{TryFrom, TryInto},
     fmt::Display,
     str::FromStr,
 };
@@ -274,6 +274,20 @@ pub struct RoleId(IdString);
 
 id_impl! {RoleId}
 
+/// Id type for sessions.
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[serde(transparent)]
+pub struct SessionId(IdString);
+
+id_impl! {SessionId}
+
+/// Id type for sessions.
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[serde(transparent)]
+pub struct InviteId(IdString);
+
+id_impl! {InviteId}
+
 /// Id type for members.
 ///
 /// Note: it is a pair of a [`ServerId`] and [`UserId`]
@@ -281,57 +295,4 @@ id_impl! {RoleId}
 pub struct MemberId {
     pub server: ServerId,
     pub user: UserId,
-}
-
-/// Id type for attachments
-///
-/// Attachment ids are returned by `Autumn`.
-// and can be from 1 up to 128 characters
-// right now uploading a file gives a 42
-// char id
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-#[serde(try_from = "String", into = "String")]
-pub struct AttachmentId([u8; 128], usize); // buffer + string slice length
-
-impl FromStr for AttachmentId {
-    type Err = Infallible;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self::from(s))
-    }
-}
-
-impl<'a> From<&'a str> for AttachmentId {
-    fn from(s: &'a str) -> Self {
-        let len = s.len();
-        assert!(len <= 128);
-        let mut buf = [0; 128];
-        buf[..len].copy_from_slice(s.as_bytes());
-
-        Self(buf, len)
-    }
-}
-
-impl From<String> for AttachmentId {
-    fn from(s: String) -> Self {
-        Self::from(s.as_str())
-    }
-}
-
-impl AsRef<str> for AttachmentId {
-    fn as_ref(&self) -> &str {
-        unsafe { std::str::from_utf8_unchecked(&self.0[..self.1]) }
-    }
-}
-
-impl From<AttachmentId> for String {
-    fn from(id: AttachmentId) -> Self {
-        id.as_ref().to_string()
-    }
-}
-
-impl Display for AttachmentId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.as_ref().fmt(f)
-    }
 }

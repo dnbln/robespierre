@@ -18,8 +18,8 @@ use robespierre::model::MessageExt;
 use robespierre_cache::CacheConfig;
 use robespierre_events::Connection;
 use robespierre_http::Http;
-use robespierre_models::channel::Message;
-use robespierre_models::channel::MessageContent;
+use robespierre_models::channels::Message;
+use robespierre_models::channels::MessageContent;
 use robespierre_models::events::ReadyEvent;
 
 #[tokio::main]
@@ -74,7 +74,7 @@ Now, let's get rid of the `on_ready` and `on_message` functions:
 # use robespierre_cache::CacheConfig;
 # use robespierre_events::Connection;
 # use robespierre_http::Http;
-# use robespierre_models::channel::Message;
+# use robespierre_models::channels::Message;
 
 # #[tokio::main]
 # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -140,7 +140,7 @@ use robespierre::framework::standard::{FwContext, CommandResult, macros::command
 # use robespierre_cache::CacheConfig;
 # use robespierre_events::Connection;
 # use robespierre_http::Http;
-# use robespierre_models::channel::Message;
+# use robespierre_models::channels::Message;
 
 # #[tokio::main]
 # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -190,7 +190,7 @@ use robespierre::framework::standard::{StandardFramework, Command, CommandCodeFn
 # use robespierre_cache::CacheConfig;
 # use robespierre_events::Connection;
 # use robespierre_http::Http;
-# use robespierre_models::channel::Message;
+# use robespierre_models::channels::Message;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -248,7 +248,7 @@ use robespierre::FrameworkWrap;
 # use robespierre_cache::CacheConfig;
 # use robespierre_events::Connection;
 # use robespierre_http::Http;
-# use robespierre_models::channel::Message;
+# use robespierre_models::channels::Message;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

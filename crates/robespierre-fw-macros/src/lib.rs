@@ -111,7 +111,7 @@ pub fn command(
     let result = quote! {
         #visibility fn #old_name <'a> (
             ctx: &'a ::robespierre::framework::standard::FwContext,
-            message: &'a ::std::sync::Arc<::robespierre_models::channel::Message>,
+            message: &'a ::std::sync::Arc<::robespierre_models::channels::Message>,
             args: &'a ::std::primitive::str,
         ) -> ::std::pin::Pin<::std::boxed::Box<dyn ::std::future::Future<Output = ::robespierre::framework::standard::CommandResult> + ::std::marker::Send + 'a>> {
             #command_func

@@ -1,6 +1,6 @@
 # Robespierre
 
-[![version badge][]][link] ![license badge][] ![rust badge][]
+[![version badge][]][link] ![license badge][] ![rust badge][] ![api version badge][]
 
 A [revolt.chat][revolt] API wrapper.
 
@@ -26,3 +26,5 @@ See the [LICENSE-APACHE][license apache] and [LICENSE-MIT][license mit] files in
 [revolt]: https://revolt.chat
 
 [rust badge]: https://img.shields.io/badge/rust-1.53+-93450a.svg?style=for-the-badge&logo=rust
+
+[api version badge]: https://img.shields.io/badge/api-0.5.3--alpha.0--patch.0-orange.svg?style=for-the-badge

@@ -4,98 +4,260 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    attachments::Attachment,
-    id::{AttachmentId, ChannelId, MessageId, RoleId, ServerId, UserId},
+    autumn::{Attachment, AttachmentId},
+    id::{ChannelId, MessageId, RoleId, ServerId, UserId},
+    january::Embed,
 };
+
+/*
+Types
+*/
+
+// https://github.com/revoltchat/api/blob/master/types/Channels.ts#L5-L24
+
+#[derive(Deserialize, Serialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+pub struct LastMessage {
+    #[serde(rename = "_id")]
+    pub id: MessageId,
+    pub author: UserId,
+    pub short: String,
+}
+
+/*
+Note: leave `channel_type`, and use that as the #[serde(tag=)] of `Channel`, but take the `nonce` from `Channel`
+*/
+
+// https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Channels.ts#L26-L41
+
+/// Saved Messages channel has only one participant, the user who created it.
+#[derive(Deserialize, Serialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+pub struct SavedMessagesChannel {
+    #[serde(rename = "_id")]
+    pub id: ChannelId,
+    pub user: UserId,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nonce: Option<String>,
+}
+
+// https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Channels.ts#L43-L62
+
+#[derive(Deserialize, Serialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+pub struct DirectMessageChannel {
+    #[serde(rename = "_id")]
+    pub id: ChannelId,
+    pub active: bool,
+    pub recipients: Vec<UserId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_message: Option<LastMessage>,
+
+    // from channel
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nonce: Option<String>,
+}
+
+// https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Channels.ts#L64-L108
+
+#[derive(Deserialize, Serialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+pub struct GroupChannel {
+    #[serde(rename = "_id")]
+    pub id: ChannelId,
+    /// List of user IDs who are participating in this group
+    pub recipients: Vec<UserId>,
+
+    /// Group name
+    pub name: String,
+
+    /// User ID of group owner
+    pub owner: UserId,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_message: Option<LastMessage>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon: Option<Attachment>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub permissions: Option<ChannelPermissions>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nsfw: Option<bool>,
+
+    // from channel
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nonce: Option<String>,
+}
+
+// https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Channels.ts#L110-L149
+
+#[derive(Deserialize, Serialize, Debug, Clone, Eq, PartialEq)]
+pub struct ServerChannel {
+    #[serde(rename = "_id")]
+    pub id: ChannelId,
+
+    pub server: ServerId,
+
+    pub name: String,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon: Option<Attachment>,
+
+    /// Permissions given to all users
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_permissions: Option<ChannelPermissions>,
+
+    /// Permissions given to roles
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub role_permissions: HashMap<RoleId, ChannelPermissions>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nsfw: Option<bool>,
+}
+
+// https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Channels.ts#L151-L155
+
+#[derive(Deserialize, Serialize, Debug, Clone, Eq, PartialEq)]
+pub struct TextChannel {
+    #[serde(flatten)]
+    pub server_channel: ServerChannel,
+
+    pub last_message: Option<MessageId>,
+
+    // from channel
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nonce: Option<String>,
+}
+
+// https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Channels.ts#L157-L159
+
+#[derive(Deserialize, Serialize, Debug, Clone, Eq, PartialEq)]
+pub struct VoiceChannel {
+    #[serde(flatten)]
+    pub server_channel: ServerChannel,
+
+    // from channel
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nonce: Option<String>,
+}
+
+// https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Channels.ts#L161
 
 /// A channel
 #[derive(Deserialize, Serialize, Debug, Clone, Eq, PartialEq)]
 #[serde(tag = "channel_type")]
 pub enum Channel {
-    SavedMessages {
-        #[serde(rename = "_id")]
-        id: ChannelId,
-        user: UserId,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        nonce: Option<String>,
-    },
-    DirectMessage {
-        #[serde(rename = "_id")]
-        id: ChannelId,
-        recipients: Vec<UserId>,
-        last_message: LastMessageData,
+    SavedMessages(SavedMessagesChannel),
+    DirectMessage(DirectMessageChannel),
+    Group(GroupChannel),
+    TextChannel(TextChannel),
+    VoiceChannel(VoiceChannel),
+}
 
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        nonce: Option<String>,
-    },
-    Group {
-        #[serde(rename = "_id")]
-        id: ChannelId,
-        recipients: Vec<UserId>,
-        name: String,
-        owner: UserId,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        description: Option<String>,
-        last_message: LastMessageData,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        icon: Option<Attachment>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        permissions: Option<ChannelPermissions>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        nonce: Option<String>,
-    },
-    TextChannel {
-        #[serde(rename = "_id")]
-        id: ChannelId,
-        server: ServerId,
-        name: String,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        description: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        icon: Option<Attachment>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        default_permissions: Option<ChannelPermissions>,
-        #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-        role_permissions: HashMap<RoleId, ChannelPermissions>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        last_message: Option<MessageId>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        nonce: Option<String>,
-    },
-    VoiceChannel {
-        #[serde(rename = "_id")]
-        id: ChannelId,
-        server: ServerId,
-        name: String,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        description: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        icon: Option<Attachment>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        default_permissions: Option<ChannelPermissions>,
-        #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-        role_permissions: HashMap<RoleId, ChannelPermissions>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        nonce: Option<String>,
-    },
+// https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Channels.ts#L163-L210
+/// A message
+#[derive(Serialize, Deserialize, Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Message {
+    #[serde(rename = "_id")]
+    pub id: MessageId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nonce: Option<String>,
+    pub channel: ChannelId,
+    pub author: UserId,
+    pub content: MessageContent,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub attachments: Vec<Attachment>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub edited: Option<Date>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub embeds: Vec<Embed>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mentions: Vec<UserId>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub replies: Vec<MessageId>,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[serde(untagged)]
+pub enum MessageContent {
+    Content(String),
+    SystemMessage(SystemMessage),
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum SystemMessage {
+    Text { content: String },
+    UserAdded { id: UserId, by: UserId },
+    UserRemove { id: UserId, by: UserId },
+    UserJoined { id: UserId },
+    UserLeft { id: UserId },
+    UserKicked { id: UserId },
+    UserBanned { id: UserId },
+    ChannelRenamed { name: String, by: UserId },
+    ChannelDescriptionChanged { by: UserId },
+    ChannelIconChanged { by: UserId },
+}
+
+/*
+Extra
+*/
+
+/// Data about what messages to reply to
+#[derive(Serialize, Deserialize, Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ReplyData {
+    pub id: MessageId,
+    pub mention: bool,
+}
+
+bitflags::bitflags! {
+    #[derive(Serialize, Deserialize)]
+    #[serde(transparent)]
+    #[doc = "Channel permissions"]
+    pub struct ChannelPermissions: u32 {
+        const VIEW = 0b00000000000000000000000000000001;           // 1
+        const SEND_MESSAGE = 0b00000000000000000000000000000010;    // 2
+        const MANAGE_MESSAGES = 0b00000000000000000000000000000100; // 4
+        const MANAGE_CHANNEL = 0b00000000000000000000000000001000;  // 8
+        const VOICE_CALL =  0b00000000000000000000000000010000;      // 16
+        const INVITE_OTHERS = 0b00000000000000000000000000100000;   // 32
+        const EMBED_LINKS = 0b00000000000000000000000001000000;   // 64
+        const UPLOAD_FILES = 0b00000000000000000000000010000000;   // 128
+    }
 }
 
 impl Channel {
     pub fn id(&self) -> ChannelId {
         match self {
-            Self::SavedMessages { id, .. } => *id,
-            Self::DirectMessage { id, .. } => *id,
-            Self::Group { id, .. } => *id,
-            Self::TextChannel { id, .. } => *id,
-            Self::VoiceChannel { id, .. } => *id,
+            Self::SavedMessages(SavedMessagesChannel { id, .. }) => *id,
+            Self::DirectMessage(DirectMessageChannel { id, .. }) => *id,
+            Self::Group(GroupChannel { id, .. }) => *id,
+            Self::TextChannel(TextChannel {
+                server_channel: ServerChannel { id, .. },
+                ..
+            }) => *id,
+            Self::VoiceChannel(VoiceChannel {
+                server_channel: ServerChannel { id, .. },
+                ..
+            }) => *id,
         }
     }
 
     pub fn server_id(&self) -> Option<ServerId> {
         match self {
-            Channel::TextChannel { server, .. } | Channel::VoiceChannel { server, .. } => {
-                Some(*server)
-            }
+            Channel::TextChannel(TextChannel {
+                server_channel: ServerChannel { server, .. },
+                ..
+            })
+            | Channel::VoiceChannel(VoiceChannel {
+                server_channel: ServerChannel { server, .. },
+                ..
+            }) => Some(*server),
             _ => None,
         }
     }
@@ -123,7 +285,7 @@ pub struct PartialChannel {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     recipients: Option<Vec<UserId>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    last_message: Option<LastMessageData>,
+    last_message: Option<LastMessage>,
 
     name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -143,6 +305,12 @@ pub struct PartialChannel {
     role_permissions: Option<HashMap<RoleId, ChannelPermissions>>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    active: Option<bool>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    nsfw: Option<bool>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     channel_type: Option<ChannelType>,
 }
 
@@ -150,7 +318,7 @@ impl PartialChannel {
     /// Treats self as a patch and applies it to channel.
     pub fn patch(self, ch: &mut Channel) {
         match ch {
-            Channel::SavedMessages { id: _, user, nonce } => {
+            Channel::SavedMessages(SavedMessagesChannel { id: _, user, nonce }) => {
                 if let Some(puser) = self.user {
                     *user = puser;
                 }
@@ -158,23 +326,28 @@ impl PartialChannel {
                     *nonce = Some(pnonce);
                 }
             }
-            Channel::DirectMessage {
+            Channel::DirectMessage(DirectMessageChannel {
                 id: _,
                 recipients,
                 last_message,
                 nonce,
-            } => {
+                active,
+            }) => {
                 if let Some(precipients) = self.recipients {
                     *recipients = precipients;
                 }
                 if let Some(plast_message) = self.last_message {
-                    *last_message = plast_message;
+                    *last_message = Some(plast_message);
                 }
                 if let Some(pnonce) = self.nonce {
                     *nonce = Some(pnonce);
                 }
+
+                if let Some(pactive) = self.active {
+                    *active = pactive;
+                }
             }
-            Channel::Group {
+            Channel::Group(GroupChannel {
                 id: _,
                 recipients,
                 name,
@@ -183,8 +356,9 @@ impl PartialChannel {
                 last_message,
                 icon,
                 permissions,
+                nsfw,
                 nonce,
-            } => {
+            }) => {
                 if let Some(precipients) = self.recipients {
                     *recipients = precipients;
                 }
@@ -198,7 +372,7 @@ impl PartialChannel {
                     *description = Some(pdescription);
                 }
                 if let Some(plast_message) = self.last_message {
-                    *last_message = plast_message;
+                    *last_message = Some(plast_message);
                 }
                 if let Some(picon) = self.icon {
                     *icon = Some(picon);
@@ -206,21 +380,28 @@ impl PartialChannel {
                 if let Some(ppermissions) = self.permissions {
                     *permissions = Some(ppermissions);
                 }
+                if let Some(pnsfw) = self.nsfw {
+                    *nsfw = Some(pnsfw);
+                }
                 if let Some(pnonce) = self.nonce {
                     *nonce = Some(pnonce);
                 }
             }
-            Channel::TextChannel {
-                id: _,
-                server,
-                name,
-                description,
-                icon,
-                default_permissions,
-                role_permissions,
+            Channel::TextChannel(TextChannel {
+                server_channel:
+                    ServerChannel {
+                        id: _,
+                        server,
+                        name,
+                        description,
+                        icon,
+                        default_permissions,
+                        role_permissions,
+                        nsfw,
+                    },
                 last_message: _,
                 nonce,
-            } => {
+            }) => {
                 if let Some(pserver) = self.server {
                     *server = pserver;
                 }
@@ -238,6 +419,9 @@ impl PartialChannel {
                 }
                 if let Some(prole_permissions) = self.role_permissions {
                     *role_permissions = prole_permissions;
+                }
+                if let Some(pnsfw) = self.nsfw {
+                    *nsfw = Some(pnsfw);
                 }
                 // if let Some(plast_message) = self.last_message {
                 //     *last_message = Some(plast_message);
@@ -246,16 +430,20 @@ impl PartialChannel {
                     *nonce = Some(pnonce);
                 }
             }
-            Channel::VoiceChannel {
-                id: _,
-                server,
-                name,
-                description,
-                icon,
-                default_permissions,
-                role_permissions,
+            Channel::VoiceChannel(VoiceChannel {
+                server_channel:
+                    ServerChannel {
+                        id: _,
+                        server,
+                        name,
+                        description,
+                        icon,
+                        default_permissions,
+                        role_permissions,
+                        nsfw,
+                    },
                 nonce,
-            } => {
+            }) => {
                 if let Some(pserver) = self.server {
                     *server = pserver;
                 }
@@ -274,118 +462,15 @@ impl PartialChannel {
                 if let Some(prole_permissions) = self.role_permissions {
                     *role_permissions = prole_permissions;
                 }
+                if let Some(pnsfw) = self.nsfw {
+                    *nsfw = Some(pnsfw);
+                }
                 if let Some(pnonce) = self.nonce {
                     *nonce = Some(pnonce);
                 }
             }
         }
     }
-}
-
-bitflags::bitflags! {
-    #[derive(Serialize, Deserialize)]
-    #[serde(transparent)]
-    #[doc = "Channel permissions"]
-    pub struct ChannelPermissions: u32 {
-        const VIEW = 0b00000000000000000000000000000001;           // 1
-        const SEND_MESSAGE = 0b00000000000000000000000000000010;    // 2
-        const MANAGE_MESSAGES = 0b00000000000000000000000000000100; // 4
-        const MANAGE_CHANNEL = 0b00000000000000000000000000001000;  // 8
-        const VOICE_CALL =  0b00000000000000000000000000010000;      // 16
-        const INVITE_OTHERS = 0b00000000000000000000000000100000;   // 32
-        const EMBED_LINKS = 0b00000000000000000000000001000000;   // 64
-        const UPLOAD_FILES = 0b00000000000000000000000010000000;   // 128
-    }
-}
-
-/// A dm channel or group
-#[derive(Deserialize, Serialize, Debug, Clone, Eq, PartialEq)]
-#[serde(tag = "channel_type")]
-pub enum DmChannel {
-    DirectMessage {
-        #[serde(rename = "_id")]
-        id: ChannelId,
-        recipients: Vec<UserId>,
-        last_message: LastMessageData,
-
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        nonce: Option<String>,
-    },
-    Group {
-        #[serde(rename = "_id")]
-        id: ChannelId,
-        recipients: Vec<UserId>,
-        name: String,
-        owner: UserId,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        description: Option<String>,
-        last_message: LastMessageData,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        icon: Option<Attachment>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        permissions: Option<ChannelPermissions>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        nonce: Option<String>,
-    },
-}
-
-#[derive(Deserialize, Serialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-pub struct LastMessageData {
-    #[serde(rename = "_id")]
-    pub id: MessageId,
-    pub author: UserId,
-    pub short: String,
-}
-
-/// Data about reply
-#[derive(Serialize, Deserialize, Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ReplyData {
-    pub id: MessageId,
-    pub mention: bool,
-}
-
-/// A message
-#[derive(Serialize, Deserialize, Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Message {
-    #[serde(rename = "_id")]
-    pub id: MessageId,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub nonce: Option<String>,
-    pub channel: ChannelId,
-    pub author: UserId,
-    pub content: MessageContent,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub attachments: Vec<Attachment>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub edited: Option<Date>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub embeds: Vec<Embed>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub mentions: Vec<UserId>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub replies: Vec<MessageId>,
-}
-
-#[derive(Deserialize, Serialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum SystemMessage {
-    Text { content: String },
-    UserAdded { id: UserId, by: UserId },
-    UserRemove { id: UserId, by: UserId },
-    UserJoined { id: UserId },
-    UserLeft { id: UserId },
-    UserKicked { id: UserId },
-    UserBanned { id: UserId },
-    ChannelRenamed { name: String, by: UserId },
-    ChannelDescriptionChanged { by: UserId },
-    ChannelIconChanged { by: UserId },
-}
-
-#[derive(Deserialize, Serialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-#[serde(untagged)]
-pub enum MessageContent {
-    Content(String),
-    SystemMessage(SystemMessage),
 }
 
 /// A message where all the fields are optional, and can be treated as a patch
@@ -498,100 +583,6 @@ struct WrappedDate {
     date: DateTime<Utc>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[serde(tag = "type")]
-pub enum Embed {
-    None,
-    Website {
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        url: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        special: Option<SpecialWebsiteEmbed>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        title: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        description: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        image: Option<EmbeddedImage>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        video: Option<EmbeddedVideo>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        site_name: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        icon_url: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        color: Option<String>,
-    },
-    Image {
-        url: String,
-        width: u32,
-        height: u32,
-        size: SizeType,
-    },
-}
-
-/// Data about an embed of a special website, if it is the case
-#[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-#[serde(tag = "type")]
-pub enum SpecialWebsiteEmbed {
-    None,
-    YouTube {
-        id: String,
-    },
-    Twitch {
-        content_type: TwitchContentType,
-        id: String,
-    },
-    Spotify {
-        content_type: String,
-        id: String,
-    },
-    Soundcloud,
-    Bandcamp {
-        content_type: BandcampContentType,
-        id: String,
-    },
-}
-
-/// Twich content type
-#[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-pub enum TwitchContentType {
-    Channel,
-    Clip,
-    Video,
-}
-
-/// Bandcamp content type
-#[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-pub enum BandcampContentType {
-    Album,
-    Track,
-}
-
-/// Embedded image
-#[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-pub struct EmbeddedImage {
-    pub url: String,
-    pub width: u32,
-    pub height: u32,
-    pub size: SizeType,
-}
-
-/// Embedded video
-#[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-pub struct EmbeddedVideo {
-    pub url: String,
-    pub width: u32,
-    pub height: u32,
-}
-
-/// Size type
-#[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-pub enum SizeType {
-    Large,
-    Preview,
-}
-
 /// A patch to a channel
 #[derive(Serialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct ChannelEditPatch {
@@ -617,15 +608,27 @@ impl ChannelField {
     pub fn remove_patch(self, channel: &mut Channel) {
         match self {
             Self::Description => match channel {
-                Channel::Group { description, .. }
-                | Channel::TextChannel { description, .. }
-                | Channel::VoiceChannel { description, .. } => *description = None,
+                Channel::Group(GroupChannel { description, .. })
+                | Channel::TextChannel(TextChannel {
+                    server_channel: ServerChannel { description, .. },
+                    ..
+                })
+                | Channel::VoiceChannel(VoiceChannel {
+                    server_channel: ServerChannel { description, .. },
+                    ..
+                }) => *description = None,
                 Channel::SavedMessages { .. } | Channel::DirectMessage { .. } => {}
             },
             Self::Icon => match channel {
-                Channel::Group { icon, .. }
-                | Channel::TextChannel { icon, .. }
-                | Channel::VoiceChannel { icon, .. } => *icon = None,
+                Channel::Group(GroupChannel { icon, .. })
+                | Channel::TextChannel(TextChannel {
+                    server_channel: ServerChannel { icon, .. },
+                    ..
+                })
+                | Channel::VoiceChannel(VoiceChannel {
+                    server_channel: ServerChannel { icon, .. },
+                    ..
+                }) => *icon = None,
                 Channel::SavedMessages { .. } | Channel::DirectMessage { .. } => {}
             },
         }

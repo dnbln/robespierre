@@ -3,9 +3,9 @@
 use std::fmt;
 
 use robespierre_models::{
-    channel::Channel,
+    channels::Channel,
     id::{ChannelId, UserId},
-    user::User,
+    users::User,
 };
 
 /// A helper which when formatted using [`std::fmt::Display`] creates a mention.
