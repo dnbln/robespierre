@@ -14,18 +14,10 @@ use crate::{
 #[derive(Serialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(tag = "type")]
 pub enum ClientToServerEvent {
-    Authenticate {
-        token: String,
-    },
-    BeginTyping {
-        channel: ChannelId,
-    },
-    EndTyping {
-        channel: ChannelId,
-    },
-    Ping {
-        data: u32,
-    },
+    Authenticate { token: String },
+    BeginTyping { channel: ChannelId },
+    EndTyping { channel: ChannelId },
+    Ping { data: u32 },
 }
 
 /// Event received after authentication.

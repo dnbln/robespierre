@@ -50,5 +50,5 @@ Extra
 */
 #[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BotField {
-    InteractionsURL
+    InteractionsURL,
 }
