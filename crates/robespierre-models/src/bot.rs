@@ -44,3 +44,11 @@ pub struct PublicBot {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     description: Option<String>,
 }
+
+/*
+Extra
+*/
+#[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum BotField {
+    InteractionsURL
+}

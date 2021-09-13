@@ -6,8 +6,9 @@ use async_tungstenite::{
 };
 use futures::FutureExt;
 use robespierre_models::{
+    auth::Session,
     events::{ClientToServerEvent, ServerToClientEvent},
-    id::{ChannelId, UserId},
+    id::ChannelId,
 };
 use std::result::Result as StdResult;
 use tokio::{net::TcpStream, sync::mpsc::UnboundedSender};
@@ -44,13 +45,16 @@ pub struct Connection(ConnectionInternal);
 /// A value that can be used to authenticate on the websocket, either as a bot or as a non-bot user.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Authentication<'a> {
-    Bot {
-        token: &'a str,
-    },
-    User {
-        user_id: UserId,
-        session_token: &'a str,
-    },
+    Bot { token: &'a str },
+    User { session_token: &'a str },
+}
+
+impl<'a> From<&'a Session> for Authentication<'a> {
+    fn from(s: &'a Session) -> Self {
+        Self::User {
+            session_token: &s.token.0,
+        }
+    }
 }
 
 #[async_trait::async_trait]
@@ -247,15 +251,11 @@ impl ConnectionInternal {
     async fn authenticate(&mut self, auth: Authentication<'_>) -> Result {
         tracing::debug!("Authenticating");
         self.send_event(match &auth {
-            Authentication::Bot { token } => ClientToServerEvent::AuthenticateBot {
+            Authentication::Bot { token } => ClientToServerEvent::Authenticate {
                 token: token.to_string(),
             },
-            Authentication::User {
-                user_id,
-                session_token,
-            } => ClientToServerEvent::Authenticate {
-                user_id: *user_id,
-                session_token: session_token.to_string(),
+            Authentication::User { session_token } => ClientToServerEvent::Authenticate {
+                token: session_token.to_string(),
             },
         })
         .await?;

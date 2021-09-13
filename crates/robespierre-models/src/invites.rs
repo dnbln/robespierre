@@ -28,7 +28,7 @@ pub enum Invite {
 // https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Invites.ts#L30-L42
 
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-pub struct RetrievedInvite {
+pub struct ServerRetrievedInvite {
     pub server_id: ServerId,
     pub server_name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -43,4 +43,10 @@ pub struct RetrievedInvite {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub user_avatar: Option<Attachment>,
     pub member_count: usize,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[serde(tag = "type")]
+pub enum RetrievedInvite {
+    Server(ServerRetrievedInvite),
 }

@@ -458,13 +458,8 @@ where
 }
 
 pub enum Authentication {
-    Bot {
-        token: String,
-    },
-    User {
-        user_id: UserId,
-        session_token: String,
-    },
+    Bot { token: String },
+    User { session_token: String },
 }
 
 impl Authentication {
@@ -474,9 +469,8 @@ impl Authentication {
         }
     }
 
-    pub fn user(user_id: UserId, session_token: impl Into<String>) -> Self {
+    pub fn user(session_token: impl Into<String>) -> Self {
         Self::User {
-            user_id,
             session_token: session_token.into(),
         }
     }
@@ -489,11 +483,7 @@ impl<'a> From<&'a Authentication> for robespierre_events::Authentication<'a> {
             Authentication::Bot { token } => Self::Bot {
                 token: token.as_str(),
             },
-            Authentication::User {
-                user_id,
-                session_token,
-            } => Self::User {
-                user_id: *user_id,
+            Authentication::User { session_token } => Self::User {
                 session_token: session_token.as_str(),
             },
         }
@@ -506,11 +496,7 @@ impl<'a> From<&'a Authentication> for HttpAuthentication<'a> {
             Authentication::Bot { token } => Self::BotToken {
                 token: token.as_str(),
             },
-            Authentication::User {
-                user_id,
-                session_token,
-            } => Self::UserSession {
-                user_id: *user_id,
+            Authentication::User { session_token } => Self::UserSession {
                 session_token: session_token.as_str(),
             },
         }

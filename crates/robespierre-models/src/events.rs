@@ -15,15 +15,8 @@ use crate::{
 #[serde(tag = "type")]
 pub enum ClientToServerEvent {
     Authenticate {
-        user_id: UserId,
-        session_token: String,
-    },
-
-    #[serde(rename = "Authenticate")]
-    AuthenticateBot {
         token: String,
     },
-
     BeginTyping {
         channel: ChannelId,
     },

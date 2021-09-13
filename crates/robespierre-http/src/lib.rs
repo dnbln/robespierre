@@ -6,18 +6,24 @@ use reqwest::{
     RequestBuilder,
 };
 use robespierre_models::{
+    auth::{Account, Session, SessionInfo},
     autumn::{Attachment, AttachmentId, AttachmentTag},
+    bot::{Bot, BotField, PublicBot},
     channels::{
         Channel, ChannelField, ChannelInviteCode, ChannelPermissions, CreateChannelInviteResponse,
-        Message, MessageFilter, ReplyData, ServerChannelType,
+        DirectMessageChannel, Message, MessageFilter, ReplyData, ServerChannelType,
     },
     core::RevoltConfiguration,
-    id::{ChannelId, MessageId, RoleId, ServerId, UserId},
-    servers::{Ban, Member, MemberField, PartialMember, PartialServer, Server, ServerField},
+    id::{ChannelId, InviteId, MessageId, RoleId, ServerId, SessionId, UserId},
+    invites::RetrievedInvite,
+    servers::{
+        Ban, Member, MemberField, PartialMember, PartialServer, PermissionTuple, Server,
+        ServerField,
+    },
     users::{Profile, Relationship, RelationshipStatus, User, UserEditPatch},
 };
 
-use crate::utils::{PermissionsUpdateRequest, SendMessageRequest};
+use crate::utils::{PermissionsUpdateRequest, SendMessageRequest, SetPermissionsRequest};
 
 /// Any error that can happen while requesting / decoding
 #[derive(Debug, thiserror::Error)]
@@ -34,13 +40,8 @@ pub type Result<T = ()> = StdResult<T, HttpError>;
 /// A value that can be used to authenticate on the REST API, either as a bot or as a non-bot user.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum HttpAuthentication<'a> {
-    BotToken {
-        token: &'a str,
-    },
-    UserSession {
-        user_id: UserId,
-        session_token: &'a str,
-    },
+    BotToken { token: &'a str },
+    UserSession { session_token: &'a str },
 }
 trait AuthExt: Sized {
     fn auth(self, auth: &HttpAuthentication) -> Self;
@@ -50,12 +51,9 @@ impl AuthExt for RequestBuilder {
     fn auth(self, auth: &HttpAuthentication) -> Self {
         match auth {
             HttpAuthentication::BotToken { token } => self.header("x-bot-token", *token),
-            HttpAuthentication::UserSession {
-                user_id,
-                session_token,
-            } => self
-                .header("x-session-token", *session_token)
-                .header("x-user-id", format!("{}", user_id)),
+            HttpAuthentication::UserSession { session_token } => {
+                self.header("x-session-token", *session_token)
+            }
         }
     }
 }
@@ -66,12 +64,8 @@ impl AuthExt for HeaderMap {
             HttpAuthentication::BotToken { token } => {
                 self.insert("x-bot-token", token.parse().unwrap());
             }
-            HttpAuthentication::UserSession {
-                user_id,
-                session_token,
-            } => {
+            HttpAuthentication::UserSession { session_token } => {
                 self.insert("x-session-token", session_token.parse().unwrap());
-                self.insert("x-user-id", user_id.as_ref().parse().unwrap());
             }
         }
 
@@ -84,18 +78,38 @@ pub struct Http {
     client: reqwest::Client,
     api_root: String,
     revolt_config: RevoltConfiguration,
+
+    auth_type: AuthType,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum AuthType {
+    Bot,
+    UserSession,
 }
 
 macro_rules! ep {
-    ($self:expr, $ep:literal $($args:tt)*) => {
+    ($self:ident, $ep:literal $($args:tt)*) => {
         format!(concat!("{}", $ep), $self.api_root, $($args)*)
-    }
+    };
+
+    (api_root = $api_root:expr, $ep:literal $($args:tt)*) => {
+        format!(concat!("{}", $ep), $api_root, $($args)*)
+    };
 }
 
 macro_rules! autumn_tag_upload {
     ($self:expr, $tag:expr) => {
         format!("{}/{}", $self.revolt_config.features.autumn.url(), $tag)
     };
+}
+
+impl<'a> From<&'a Session> for HttpAuthentication<'a> {
+    fn from(s: &'a Session) -> Self {
+        HttpAuthentication::UserSession {
+            session_token: &s.token.0,
+        }
+    }
 }
 
 impl Http {
@@ -111,18 +125,31 @@ impl Http {
         auth: impl Into<HttpAuthentication<'auth>>,
         api_root: &str,
     ) -> Result<Self> {
-        let mut default_headers = HeaderMap::new().auth(&auth.into());
+        let auth = auth.into();
+        let mut default_headers = HeaderMap::new().auth(&auth);
         default_headers.insert(reqwest::header::ACCEPT, HeaderValue::from_static("*/*"));
         let client = reqwest::Client::builder()
             .default_headers(default_headers)
             .build()
             .unwrap();
         let revolt_config = Self::get_revolt_config(&client, api_root).await?;
+        let auth_type = match auth {
+            HttpAuthentication::BotToken { .. } => AuthType::Bot,
+            HttpAuthentication::UserSession { .. } => AuthType::UserSession,
+        };
         Ok(Self {
             client,
             api_root: api_root.to_string(),
             revolt_config,
+            auth_type,
         })
+    }
+
+    fn client_user_session_auth_type(&self) -> &reqwest::Client {
+        match self.auth_type {
+            AuthType::Bot => panic!("Cannot use route when using a bot auth"),
+            AuthType::UserSession => &self.client,
+        }
     }
 
     /// Gets the websocket url
@@ -141,6 +168,286 @@ impl Http {
             .error_for_status()?
             .json()
             .await?)
+    }
+
+    // onboarding
+    pub async fn get_onboarding(&self) -> Result<OnboardingStatus> {
+        Ok(self
+            .client_user_session_auth_type()
+            .get(ep!(self, "/onboard/hello"))
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    pub async fn complete_onboarding(&self, username: &str) -> Result {
+        #[derive(serde::Serialize)]
+        struct CompleteOnboardingRequest<'a> {
+            username: &'a str,
+        }
+
+        self.client_user_session_auth_type()
+            .post(ep!(self, "/onboard/complete"))
+            .json(&CompleteOnboardingRequest { username })
+            .send()
+            .await?
+            .error_for_status()?;
+
+        Ok(())
+    }
+
+    // account
+    pub async fn fetch_account(&self) -> Result<Account> {
+        Ok(self
+            .client_user_session_auth_type()
+            .get(ep!(self, "/account"))
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    pub async fn create_account(
+        email: &str,
+        password: &str,
+        invite: Option<&str>,
+        captcha: Option<&str>,
+    ) -> Result {
+        #[derive(serde::Serialize)]
+        struct CreateAccountRequest<'a> {
+            email: &'a str,
+            password: &'a str,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            invite: Option<&'a str>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            captcha: Option<&'a str>,
+        }
+
+        reqwest::Client::new()
+            .post(ep!(api_root = "https://api.revolt.chat", "/account/create"))
+            .json(&CreateAccountRequest {
+                email,
+                password,
+                invite,
+                captcha,
+            })
+            .send()
+            .await?
+            .error_for_status()?;
+
+        Ok(())
+    }
+
+    pub async fn resend_verification(email: &str, captcha: Option<&str>) -> Result {
+        #[derive(serde::Serialize)]
+        struct ResendVerificationRequest<'a> {
+            email: &'a str,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            captcha: Option<&'a str>,
+        }
+
+        reqwest::Client::new()
+            .post(ep!(
+                api_root = "https://api.revolt.chat",
+                "/account/reverify"
+            ))
+            .json(&ResendVerificationRequest { email, captcha })
+            .send()
+            .await?
+            .error_for_status()?;
+
+        Ok(())
+    }
+
+    pub async fn verify_email(code: &str) -> Result {
+        reqwest::Client::new()
+            .post(ep!(
+                api_root = "https://api.revolt.chat",
+                "/account/verify/{}" code
+            ))
+            .send()
+            .await?
+            .error_for_status()?;
+
+        Ok(())
+    }
+
+    pub async fn send_password_reset(email: &str, captcha: Option<&str>) -> Result {
+        #[derive(serde::Serialize)]
+        struct SendPasswordResetRequest<'a> {
+            email: &'a str,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            captcha: Option<&'a str>,
+        }
+
+        reqwest::Client::new()
+            .post(ep!(
+                api_root = "https://api.revolt.chat",
+                "/account/reset_password"
+            ))
+            .json(&SendPasswordResetRequest { email, captcha })
+            .send()
+            .await?
+            .error_for_status()?;
+
+        Ok(())
+    }
+
+    pub async fn password_reset(password: &str, token: &str) -> Result {
+        #[derive(serde::Serialize)]
+        struct PasswordResetRequest<'a> {
+            password: &'a str,
+            token: &'a str,
+        }
+
+        reqwest::Client::new()
+            .patch(ep!(
+                api_root = "https://api.revolt.chat",
+                "/account/reset_password"
+            ))
+            .json(&PasswordResetRequest { password, token })
+            .send()
+            .await?
+            .error_for_status()?;
+
+        Ok(())
+    }
+
+    pub async fn change_password(&self, password: &str, current_password: &str) -> Result {
+        #[derive(serde::Serialize)]
+        struct ChangePasswordRequest<'a> {
+            password: &'a str,
+            current_password: &'a str,
+        }
+
+        self.client_user_session_auth_type()
+            .post(ep!(self, "/account/change/password"))
+            .json(&ChangePasswordRequest {
+                password,
+                current_password,
+            })
+            .send()
+            .await?
+            .error_for_status()?;
+
+        Ok(())
+    }
+
+    pub async fn change_email(&self, email: &str, current_password: &str) -> Result {
+        #[derive(serde::Serialize)]
+        struct ChangeEmailRequest<'a> {
+            email: &'a str,
+            current_password: &'a str,
+        }
+
+        self.client_user_session_auth_type()
+            .post(ep!(self, "/account/change/email"))
+            .json(&ChangeEmailRequest {
+                email,
+                current_password,
+            })
+            .send()
+            .await?
+            .error_for_status()?;
+
+        Ok(())
+    }
+
+    pub async fn login(
+        email: &str,
+        password: Option<&str>,
+        challange: Option<&str>,
+        friendly_name: Option<&str>,
+        captcha: Option<&str>,
+    ) -> Result<Session> {
+        #[derive(serde::Serialize)]
+        struct LoginRequest<'a> {
+            email: &'a str,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            password: Option<&'a str>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            challange: Option<&'a str>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            friendly_name: Option<&'a str>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            captcha: Option<&'a str>,
+        }
+
+        Ok(reqwest::Client::new()
+            .post(ep!(api_root = "https://api.revolt.chat", "/session/login"))
+            .json(&LoginRequest {
+                email,
+                password,
+                challange,
+                friendly_name,
+                captcha,
+            })
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    pub async fn logout(self) -> Result {
+        self.client_user_session_auth_type()
+            .delete(ep!(self, "/session/logout"))
+            .send()
+            .await?
+            .error_for_status()?;
+
+        Ok(())
+    }
+
+    pub async fn edit_session(&self, session: SessionId, friendly_name: &str) -> Result {
+        #[derive(serde::Serialize)]
+        struct EditSessionRequest<'a> {
+            friendly_name: &'a str,
+        }
+
+        self.client_user_session_auth_type()
+            .patch(ep!(self, "/session/{}" session))
+            .json(&EditSessionRequest { friendly_name })
+            .send()
+            .await?
+            .error_for_status()?;
+
+        Ok(())
+    }
+
+    pub async fn delete_session(&self, session: SessionId) -> Result {
+        self.client_user_session_auth_type()
+            .delete(ep!(self, "/session/{}" session))
+            .send()
+            .await?
+            .error_for_status()?;
+
+        Ok(())
+    }
+
+    pub async fn fetch_sessions(&self) -> Result<Vec<SessionInfo>> {
+        Ok(self
+            .client_user_session_auth_type()
+            .get(ep!(self, "/session/all"))
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    pub async fn delete_all_sessions(&self, revoke_self: bool) -> Result {
+        self.client_user_session_auth_type()
+            .delete(ep!(self, "/session/all"))
+            .query(&[("revoke_self", revoke_self)])
+            .send()
+            .await?
+            .error_for_status()?;
+
+        Ok(())
     }
 
     /// Gets an user from the api
@@ -167,11 +474,42 @@ impl Http {
         Ok(())
     }
 
+    /// Edits an username
+    pub async fn edit_username(&self, username: &str, password: &str) -> Result {
+        #[derive(serde::Serialize)]
+        struct EditUsernameRequest<'a> {
+            username: &'a str,
+            password: &'a str,
+        }
+
+        self.client_user_session_auth_type()
+            .patch(ep!(self, "/users/@me/username"))
+            .json(&EditUsernameRequest { username, password })
+            .send()
+            .await?
+            .error_for_status()?;
+
+        Ok(())
+    }
+
     /// Gets information abot an user profile
     pub async fn fetch_user_profile(&self, user_id: UserId) -> Result<Profile> {
         Ok(self
             .client
             .get(ep!(self, "/users/{}/profile" user_id))
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    // TODO: fetch default avatar
+
+    pub async fn fetch_mutual_friends(&self, user_id: UserId) -> Result<Vec<UserId>> {
+        Ok(self
+            .client
+            .get(ep!(self, "/users/{}/mutual" user_id))
             .send()
             .await?
             .error_for_status()?
@@ -192,7 +530,7 @@ impl Http {
     }
 
     /// Opens a dm with user
-    pub async fn open_dm(&self, user_id: UserId) -> Result<Channel> {
+    pub async fn open_dm(&self, user_id: UserId) -> Result<DirectMessageChannel> {
         Ok(self
             .client
             .get(ep!(self, "/users/{}/dm" user_id))
@@ -206,7 +544,7 @@ impl Http {
     /// Fetches relationships of the current user
     pub async fn fetch_relationships(&self) -> Result<Vec<Relationship>> {
         Ok(self
-            .client
+            .client_user_session_auth_type()
             .get(ep!(self, "/users/relationships"))
             .send()
             .await?
@@ -216,9 +554,9 @@ impl Http {
     }
 
     /// Fetches your relationship with the given user
-    pub async fn fetch_relationship(&self, user_id: UserId) -> Result<Relationship> {
+    pub async fn fetch_relationship(&self, user_id: UserId) -> Result<SingleRelationshipResponse> {
         Ok(self
-            .client
+            .client_user_session_auth_type()
             .get(ep!(self, "/users/{}/relationship" user_id))
             .send()
             .await?
@@ -228,50 +566,54 @@ impl Http {
     }
 
     /// Sends or accepts a friend request to / from the user with given username
-    pub async fn send_friend_request(&self, username: &str) -> Result<NewRelationshipResponse> {
+    pub async fn send_friend_request(&self, username: &str) -> Result<SingleRelationshipResponse> {
         Ok(self
-            .client
+            .client_user_session_auth_type()
             .put(ep!(self, "/users/{}/friend" username))
             .send()
             .await?
             .error_for_status()?
-            .json::<NewRelationshipResponse>()
+            .json::<SingleRelationshipResponse>()
             .await?)
     }
 
     /// Denies a friend request
-    pub async fn deny_friend_request(&self, username: &str) -> Result<NewRelationshipResponse> {
+    pub async fn deny_friend_request(&self, username: &str) -> Result<SingleRelationshipResponse> {
         Ok(self
-            .client
+            .client_user_session_auth_type()
             .delete(ep!(self, "/users/{}/friend" username))
             .send()
             .await?
             .error_for_status()?
-            .json::<NewRelationshipResponse>()
+            .json::<SingleRelationshipResponse>()
             .await?)
     }
 
+    pub async fn remove_friend(&self, username: &str) -> Result<SingleRelationshipResponse> {
+        self.deny_friend_request(username).await
+    }
+
     /// Blocks an user
-    pub async fn block(&self, user_id: UserId) -> Result<NewRelationshipResponse> {
+    pub async fn block_user(&self, user_id: UserId) -> Result<SingleRelationshipResponse> {
         Ok(self
-            .client
+            .client_user_session_auth_type()
             .put(ep!(self, "/users/{}/block" user_id))
             .send()
             .await?
             .error_for_status()?
-            .json::<NewRelationshipResponse>()
+            .json::<SingleRelationshipResponse>()
             .await?)
     }
 
     /// Unblocks an user
-    pub async fn unblock(&self, user_id: UserId) -> Result<NewRelationshipResponse> {
+    pub async fn unblock(&self, user_id: UserId) -> Result<SingleRelationshipResponse> {
         Ok(self
-            .client
+            .client_user_session_auth_type()
             .delete(ep!(self, "/users/{}/block" user_id))
             .send()
             .await?
             .error_for_status()?
-            .json::<NewRelationshipResponse>()
+            .json::<SingleRelationshipResponse>()
             .await?)
     }
 
@@ -294,6 +636,7 @@ impl Http {
         name: Option<String>,
         description: Option<String>,
         icon: Option<AttachmentId>,
+        nsfw: Option<bool>,
         remove: Option<ChannelField>,
     ) -> Result {
         #[derive(serde::Serialize)]
@@ -305,6 +648,8 @@ impl Http {
             #[serde(skip_serializing_if = "Option::is_none")]
             icon: Option<AttachmentId>,
             #[serde(skip_serializing_if = "Option::is_none")]
+            nsfw: Option<bool>,
+            #[serde(skip_serializing_if = "Option::is_none")]
             remove: Option<ChannelField>,
         }
 
@@ -314,6 +659,7 @@ impl Http {
                 name,
                 description,
                 icon,
+                nsfw,
                 remove,
             })
             .send()
@@ -350,7 +696,7 @@ impl Http {
     }
 
     /// Sets role permissions
-    pub async fn set_role_permissions(
+    pub async fn set_channel_role_permissions(
         &self,
         channel_id: ChannelId,
         role_id: RoleId,
@@ -367,7 +713,7 @@ impl Http {
     }
 
     /// Sets default permissions
-    pub async fn set_default_permissions(
+    pub async fn set_channel_default_role_permissions(
         &self,
         channel_id: ChannelId,
         permissions: ChannelPermissions,
@@ -476,6 +822,39 @@ impl Http {
         Ok(())
     }
 
+    pub async fn poll_message_changes(
+        &self,
+        channel: ChannelId,
+        ids: &[MessageId],
+    ) -> Result<PollMessageChangesResponse> {
+        #[derive(serde::Serialize)]
+        struct PollMessageChanges<'a> {
+            ids: &'a [MessageId],
+        }
+
+        Ok(self
+            .client
+            .post(ep!(self, "/channels/{}/messages/stale" channel))
+            .json(&PollMessageChanges { ids })
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    // TODO: search for messages
+
+    pub async fn acknowledge_message(&self, channel: ChannelId, message: MessageId) -> Result {
+        self.client_user_session_auth_type()
+            .put(ep!(self, "/channels/{}/ack/{}" channel, message))
+            .send()
+            .await?
+            .error_for_status()?;
+
+        Ok(())
+    }
+
     /// Creates a group
     pub async fn create_group(
         &self,
@@ -483,6 +862,7 @@ impl Http {
         description: Option<String>,
         nonce: String,
         users: Option<&[UserId]>,
+        nsfw: Option<bool>,
     ) -> Result<Channel> {
         #[derive(serde::Serialize)]
         struct CreateGroupRequest<'a> {
@@ -492,6 +872,8 @@ impl Http {
             nonce: String,
             #[serde(skip_serializing_if = "Option::is_none")]
             users: Option<&'a [UserId]>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            nsfw: Option<bool>,
         }
         Ok(self
             .client
@@ -501,6 +883,7 @@ impl Http {
                 description,
                 nonce,
                 users,
+                nsfw,
             })
             .send()
             .await?
@@ -521,7 +904,8 @@ impl Http {
             .await?)
     }
 
-    // TODO: groups
+    // TODO: add member to group
+    // TODO: remove member from group
 
     /// Fetches a server
     pub async fn fetch_server(&self, server: ServerId) -> Result<Server> {
@@ -575,6 +959,7 @@ impl Http {
         &self,
         name: String,
         description: Option<String>,
+        nsfw: Option<bool>,
         nonce: String,
     ) -> Result<Server> {
         #[derive(serde::Serialize)]
@@ -582,14 +967,17 @@ impl Http {
             name: String,
             #[serde(skip_serializing_if = "Option::is_none")]
             description: Option<String>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            nsfw: Option<bool>,
             nonce: String,
         }
         Ok(self
-            .client
+            .client_user_session_auth_type()
             .post(ep!(self, "/servers/create"))
             .json(&CreateServerRequest {
                 name,
                 description,
+                nsfw,
                 nonce,
             })
             .send()
@@ -647,7 +1035,7 @@ impl Http {
 
     /// Marks server as read
     pub async fn mark_server_as_read(&self, server: ServerId) -> Result {
-        self.client
+        self.client_user_session_auth_type()
             .put(ep!(self, "/servers/{}/ack" server))
             .send()
             .await?
@@ -758,10 +1146,213 @@ impl Http {
             .await?)
     }
 
-    // TODO server permissions
-    // TODO roles
-    // TODO bots
-    // TODO invites
+    pub async fn set_role_permissions(
+        &self,
+        server: ServerId,
+        role: RoleId,
+        permissions: PermissionTuple,
+    ) -> Result {
+        let (sp, cp) = permissions;
+
+        self.client
+            .put(ep!(self, "/servers/{}/permissions/{}" server, role))
+            .json(&SetPermissionsRequest {
+                server: sp,
+                channel: cp,
+            })
+            .send()
+            .await?
+            .error_for_status()?;
+
+        Ok(())
+    }
+
+    pub async fn set_default_role_permissions(
+        &self,
+        server: ServerId,
+        permissions: PermissionTuple,
+    ) -> Result {
+        let (sp, cp) = permissions;
+
+        self.client
+            .put(ep!(self, "/servers/{}/permissions/default" server))
+            .json(&SetPermissionsRequest {
+                server: sp,
+                channel: cp,
+            })
+            .send()
+            .await?
+            .error_for_status()?;
+
+        Ok(())
+    }
+
+    pub async fn create_role(&self, server: ServerId, name: &str) -> Result<RoleIdAndPermissions> {
+        #[derive(serde::Serialize)]
+        struct CreateRoleRequest<'a> {
+            name: &'a str,
+        }
+
+        Ok(self
+            .client
+            .post(ep!(self, "/servers/{}/roles" server))
+            .json(&CreateRoleRequest { name })
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    // TODO: edit role
+
+    pub async fn delete_role(&self, server: ServerId, role: RoleId) -> Result {
+        self.client
+            .delete(ep!(self, "/servers/{}/roles/{}" server, role))
+            .send()
+            .await?
+            .error_for_status()?;
+
+        Ok(())
+    }
+
+    pub async fn create_bot(&self, name: &str) -> Result<Bot> {
+        #[derive(serde::Serialize)]
+        struct CreateBotRequest<'a> {
+            name: &'a str,
+        }
+
+        Ok(self
+            .client_user_session_auth_type()
+            .post(ep!(self, "/bots/create"))
+            .json(&CreateBotRequest { name })
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    pub async fn fetch_owned_bots(&self) -> Result<FetchOwnedBotsResponse> {
+        Ok(self
+            .client_user_session_auth_type()
+            .get(ep!(self, "/bots/@me"))
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    pub async fn fetch_bot(&self, bot: UserId) -> Result<FetchBotResponse> {
+        Ok(self
+            .client_user_session_auth_type()
+            .get(ep!(self, "/bots/{}" bot))
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    pub async fn edit_bot(
+        &self,
+        bot: UserId,
+        name: Option<&str>,
+        public: Option<bool>,
+        interactions_url: Option<&str>,
+        remove: Option<BotField>,
+    ) -> Result {
+        #[derive(serde::Serialize)]
+        struct EditBotRequest<'a> {
+            #[serde(skip_serializing_if = "Option::is_none")]
+            name: Option<&'a str>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            public: Option<bool>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            interactions_url: Option<&'a str>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            remove: Option<BotField>,
+        }
+
+        self.client_user_session_auth_type()
+            .patch(ep!(self, "/bots/{}" bot))
+            .json(&EditBotRequest {
+                name,
+                public,
+                interactions_url,
+                remove,
+            })
+            .send()
+            .await?
+            .error_for_status()?;
+        Ok(())
+    }
+
+    pub async fn delete_bot(&self, bot: UserId) -> Result {
+        self.client_user_session_auth_type()
+            .delete(ep!(self, "/bots/{}" bot))
+            .send()
+            .await?
+            .error_for_status()?;
+
+        Ok(())
+    }
+
+    pub async fn fetch_public_bot(&self, bot: UserId) -> Result<PublicBot> {
+        Ok(self
+            .client_user_session_auth_type()
+            .get(ep!(self, "/bots/{}/invite" bot))
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    pub async fn invite_bot(&self, bot: UserId, target: InviteBotTarget) -> Result {
+        self.client_user_session_auth_type()
+            .post(ep!(self, "/bots/{}/invite" bot))
+            .json(&target)
+            .send()
+            .await?
+            .error_for_status()?;
+
+        Ok(())
+    }
+
+    pub async fn fetch_invite(&self, invite: &str) -> Result<RetrievedInvite> {
+        Ok(self
+            .client
+            .get(ep!(self, "/invites/{}" invite))
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    pub async fn join_invite(&self, invite: &str) -> Result<JoinInviteResponse> {
+        Ok(self
+            .client_user_session_auth_type()
+            .post(ep!(self, "/invites/{}" invite))
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    pub async fn delete_invite(&self, invite: &str) -> Result {
+        self.client
+            .delete(ep!(self, "/invites/{}" invite))
+            .send()
+            .await?
+            .error_for_status()?;
+
+        Ok(())
+    }
+
     // TODO sync
 
     /// Uploads a file to autumn, returning the [`AttachmentId`]
@@ -838,14 +1429,87 @@ pub enum FetchInviteResult {
 }
 
 #[derive(serde::Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-pub struct NewRelationshipResponse {
+pub struct SingleRelationshipResponse {
     pub status: RelationshipStatus,
+}
+
+#[derive(serde::Deserialize)]
+pub struct OnboardingStatus {
+    pub onboarding: bool,
+}
+
+#[derive(serde::Deserialize)]
+pub struct PollMessageChangesResponse {
+    pub changed: Vec<Message>,
+    pub deleted: Vec<MessageId>,
+}
+
+#[derive(serde::Deserialize)]
+pub struct RoleIdAndPermissions {
+    pub id: RoleId,
+    pub permissions: PermissionTuple,
+}
+
+#[derive(serde::Deserialize)]
+pub struct FetchOwnedBotsResponse {
+    pub bots: Vec<Bot>,
+    pub users: Vec<User>,
+}
+
+#[derive(serde::Deserialize)]
+pub struct FetchBotResponse {
+    pub bot: Bot,
+    pub user: User,
+}
+
+pub enum InviteBotTarget {
+    Server(ServerId),
+    Group(ChannelId),
+}
+
+impl serde::Serialize for InviteBotTarget {
+    fn serialize<S>(&self, serializer: S) -> StdResult<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            InviteBotTarget::Server(server) => {
+                #[derive(serde::Serialize)]
+                struct TargetServer {
+                    server: ServerId,
+                }
+
+                TargetServer { server: *server }.serialize(serializer)
+            }
+            InviteBotTarget::Group(group) => {
+                #[derive(serde::Serialize)]
+                struct TargetGroup {
+                    group: ChannelId,
+                }
+
+                TargetGroup { group: *group }.serialize(serializer)
+            }
+        }
+    }
+}
+
+#[derive(serde::Deserialize)]
+#[serde(tag = "type")]
+pub enum JoinInviteResponse {
+    Server(JoinServerInviteResponse),
+}
+
+#[derive(serde::Deserialize)]
+pub struct JoinServerInviteResponse {
+    pub channel: Channel,
+    pub server: Server,
 }
 
 mod utils {
     use robespierre_models::{
         autumn::AttachmentId,
         channels::{ChannelPermissions, ReplyData},
+        servers::ServerPermissions,
     };
 
     use serde::Serialize;
@@ -863,5 +1527,11 @@ mod utils {
         pub attachments: Vec<AttachmentId>,
         #[serde(skip_serializing_if = "Vec::is_empty")]
         pub replies: Vec<ReplyData>,
+    }
+
+    #[derive(Serialize)]
+    pub struct SetPermissionsRequest {
+        pub server: ServerPermissions,
+        pub channel: ChannelPermissions,
     }
 }

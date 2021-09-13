@@ -281,7 +281,7 @@ pub struct SessionId(IdString);
 
 id_impl! {SessionId}
 
-/// Id type for sessions.
+/// Id type for invites.
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(transparent)]
 pub struct InviteId(IdString);
