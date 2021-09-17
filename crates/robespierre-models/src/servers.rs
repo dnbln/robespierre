@@ -166,6 +166,19 @@ pub struct Server {
     pub banner: Option<Attachment>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub nsfw: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub flags: Option<ServerFlags>,
+}
+
+// https://github.com/revoltchat/api/blob/b6eead8fa9228ac06b7e694ede434ba336fa5b12/types/Servers.ts#L161-L166
+
+bitflags::bitflags! {
+    #[derive(Serialize, Deserialize)]
+    #[serde(transparent)]
+    pub struct ServerFlags: u32 {
+        const OFFICIAL_REVOLT_SERVER = 1;
+        const VERIFIED_COMMUNITY_SERVER = 2;
+    }
 }
 
 /*
@@ -375,6 +388,8 @@ pub struct PartialServer {
     pub banner: Option<Attachment>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub nsfw: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub flags: Option<ServerFlags>,
 }
 
 impl PartialServer {
@@ -394,6 +409,7 @@ impl PartialServer {
             icon: picon,
             banner: pbanner,
             nsfw: pnsfw,
+            flags: pflags,
         } = self;
         let Server {
             id,
@@ -409,6 +425,7 @@ impl PartialServer {
             icon,
             banner,
             nsfw,
+            flags,
         } = serv;
 
         if let Some(pid) = pid {
@@ -449,6 +466,9 @@ impl PartialServer {
         }
         if let Some(pnsfw) = pnsfw {
             *nsfw = Some(pnsfw);
+        }
+        if let Some(pflags) = pflags {
+            *flags = Some(pflags);
         }
     }
 }

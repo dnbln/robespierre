@@ -13,17 +13,6 @@ use crate::{
 Types
 */
 
-// https://github.com/revoltchat/api/blob/master/types/Channels.ts#L5-L24
-
-#[derive(Deserialize, Serialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-#[serde(deny_unknown_fields)]
-pub struct LastMessage {
-    #[serde(rename = "_id")]
-    pub id: MessageId,
-    pub author: UserId,
-    pub short: String,
-}
-
 /*
 Note: leave `channel_type`, and use that as the #[serde(tag=)] of `Channel`, but take the `nonce` from `Channel`
 */
@@ -52,7 +41,7 @@ pub struct DirectMessageChannel {
     pub active: bool,
     pub recipients: Vec<UserId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub last_message: Option<LastMessage>,
+    pub last_message_id: Option<MessageId>,
 
     // from channel
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -79,7 +68,7 @@ pub struct GroupChannel {
     pub description: Option<String>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub last_message: Option<LastMessage>,
+    pub last_message_id: Option<MessageId>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub icon: Option<Attachment>,
@@ -133,7 +122,7 @@ pub struct TextChannel {
     #[serde(flatten)]
     pub server_channel: ServerChannel,
 
-    pub last_message: Option<MessageId>,
+    pub last_message_id: Option<MessageId>,
 
     // from channel
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -297,7 +286,7 @@ pub struct PartialChannel {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     recipients: Option<Vec<UserId>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    last_message: Option<LastMessage>,
+    last_message_id: Option<MessageId>,
 
     name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -341,15 +330,15 @@ impl PartialChannel {
             Channel::DirectMessage(DirectMessageChannel {
                 id: _,
                 recipients,
-                last_message,
+                last_message_id,
                 nonce,
                 active,
             }) => {
                 if let Some(precipients) = self.recipients {
                     *recipients = precipients;
                 }
-                if let Some(plast_message) = self.last_message {
-                    *last_message = Some(plast_message);
+                if let Some(plast_message_id) = self.last_message_id {
+                    *last_message_id = Some(plast_message_id);
                 }
                 if let Some(pnonce) = self.nonce {
                     *nonce = Some(pnonce);
@@ -365,7 +354,7 @@ impl PartialChannel {
                 name,
                 owner,
                 description,
-                last_message,
+                last_message_id,
                 icon,
                 permissions,
                 nsfw,
@@ -383,8 +372,8 @@ impl PartialChannel {
                 if let Some(pdescription) = self.description {
                     *description = Some(pdescription);
                 }
-                if let Some(plast_message) = self.last_message {
-                    *last_message = Some(plast_message);
+                if let Some(plast_message_id) = self.last_message_id {
+                    *last_message_id = Some(plast_message_id);
                 }
                 if let Some(picon) = self.icon {
                     *icon = Some(picon);
@@ -411,7 +400,7 @@ impl PartialChannel {
                         role_permissions,
                         nsfw,
                     },
-                last_message: _,
+                last_message_id: _,
                 nonce,
             }) => {
                 if let Some(pserver) = self.server {
@@ -435,8 +424,8 @@ impl PartialChannel {
                 if let Some(pnsfw) = self.nsfw {
                     *nsfw = Some(pnsfw);
                 }
-                // if let Some(plast_message) = self.last_message {
-                //     *last_message = Some(plast_message);
+                // if let Some(plast_message_id) = self.last_message_id {
+                //     *last_message_id = Some(plast_message_id);
                 // }
                 if let Some(pnonce) = self.nonce {
                     *nonce = Some(pnonce);
