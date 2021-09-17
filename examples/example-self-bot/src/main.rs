@@ -83,6 +83,10 @@ impl RawEventHandler for Handler {
                         return;
                     }
 
+                    if message.channel != "01FDFCXPJ92A3MJ01DDVFYWR8M" {
+                        return;
+                    }
+
                     tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
                     ctx.2

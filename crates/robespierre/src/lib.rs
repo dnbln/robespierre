@@ -26,7 +26,7 @@ use robespierre_models::{
     events::{ReadyEvent, ServerToClientEvent},
     id::{ChannelId, MemberId, MessageId, RoleId, ServerId, UserId},
     servers::{MemberField, PartialMember, PartialRole, PartialServer, RoleField, ServerField},
-    users::{PartialUser, RelationshipStatus, UserField},
+    users::{RelationshipStatus, UserField, UserPatch},
 };
 
 pub use async_trait::async_trait;
@@ -133,7 +133,7 @@ pub trait EventHandler: Send + Sync {
         &self,
         ctx: Context,
         id: UserId,
-        modifications: PartialUser,
+        modifications: UserPatch,
         remove: Option<UserField>,
     ) {
     }
@@ -338,7 +338,7 @@ impl<
         &self,
         ctx: Context,
         id: UserId,
-        modifications: PartialUser,
+        modifications: UserPatch,
         remove: Option<UserField>,
     ) {
         self.handler

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     autumn::Attachment,
     channels::ChannelPermissions,
-    id::{ChannelId, MemberId, RoleId, ServerId, UserId},
+    id::{CategoryId, ChannelId, MemberId, RoleId, ServerId, UserId},
 };
 
 /*
@@ -118,7 +118,7 @@ pub struct RoleInformation {
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(deny_unknown_fields)]
 pub struct Category {
-    pub id: ChannelId,
+    pub id: CategoryId,
     pub title: String,
     pub channels: Vec<ChannelId>,
 }

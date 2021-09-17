@@ -163,7 +163,7 @@ bitflags! {
 // https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Users.ts#L130-L142
 
 /// Profile data about an user.
-#[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(deny_unknown_fields)]
 pub struct Profile {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -181,7 +181,7 @@ Extra
 /// function.
 #[derive(Serialize, Deserialize, Default, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(deny_unknown_fields)]
-pub struct PartialUser {
+pub struct UserPatch {
     #[serde(rename = "_id", default, skip_serializing_if = "Option::is_none")]
     pub id: Option<UserId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -202,16 +202,26 @@ pub struct PartialUser {
     pub flags: Option<UserFlags>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bot: Option<BotInformation>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub profile: Option<Profile>,
+    #[serde(
+        rename = "profile.content",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub profile_content: Option<String>,
+    #[serde(
+        rename = "profile.background",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub profile_background: Option<Attachment>,
 }
 
-impl PartialUser {
+impl UserPatch {
     /// Treats the [`PartialUser`] as a list of modifications
     /// that have to be applied to the given user, and applies
     /// them.
     pub fn patch(self, user: &mut User) {
-        let PartialUser {
+        let UserPatch {
             id: pid,
             username: pusername,
             avatar: pavatar,
@@ -222,7 +232,8 @@ impl PartialUser {
             online: ponline,
             flags: pflags,
             bot: pbot,
-            profile: pprofile,
+            profile_content: pprofile_content,
+            profile_background: pprofile_background,
         } = self;
         let User {
             id,
@@ -268,8 +279,11 @@ impl PartialUser {
         if let Some(pbot) = pbot {
             *bot = Some(pbot);
         }
-        if let Some(pprofile) = pprofile {
-            *profile = Some(pprofile);
+        if let Some(pprofile_content) = pprofile_content {
+            profile.get_or_insert(Default::default()).content = Some(pprofile_content);
+        }
+        if let Some(pprofile_background) = pprofile_background {
+            profile.get_or_insert(Default::default()).background = Some(pprofile_background);
         }
     }
 }

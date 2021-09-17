@@ -7,7 +7,7 @@ use crate::{
         Member, MemberField, PartialMember, PartialRole, PartialServer, RoleField, Server,
         ServerField,
     },
-    users::{PartialUser, RelationshipStatus, User, UserField},
+    users::{RelationshipStatus, User, UserField, UserPatch},
 };
 
 /// Any message the client can send to the server.
@@ -128,7 +128,7 @@ pub enum ServerToClientEvent {
     },
     UserUpdate {
         id: UserId,
-        data: PartialUser,
+        data: UserPatch,
         #[serde(default)]
         clear: Option<UserField>,
     },

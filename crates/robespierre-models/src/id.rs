@@ -147,28 +147,175 @@ impl<'a> PartialOrd<&'a str> for IdString {
     }
 }
 
+/*
+
+Variable length id strings
+
+*/
+
+/// variable length(up to 26 bytes) of numeric or letter characters
+#[derive(Serialize, Deserialize, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[serde(try_from = "String", into = "String")]
+pub struct VarLenIdString([u8; 26], usize);
+
+impl VarLenIdString {
+    /// Checks whether the string is a valid Id
+    pub fn check(s: &str) -> Result<(), VarLenIdStringDeserializeError> {
+        if s.len() > 26 {
+            return Err(VarLenIdStringDeserializeError::IncorrectLength {
+                expected_most: 26,
+                len: s.len(),
+            });
+        }
+
+        if let Some(pos) = s.find(|c: char| {
+            !('A'..='Z').contains(&c) && !('a'..='z').contains(&c) && !('0'..='9').contains(&c)
+        }) {
+            let c = s.chars().nth(pos).unwrap();
+
+            return Err(VarLenIdStringDeserializeError::InvalidCharacter { c, pos });
+        }
+
+        Ok(())
+    }
+
+    /// Creates a new [`IdString`] wihtout checking that
+    /// the contents are valid id characters, and the whole string
+    /// is of the right length.
+    /// # Safety
+    /// s should have passed [Self::check]
+    pub unsafe fn from_str_unchecked(s: &str) -> Self {
+        let len = s.len();
+        let mut buf = [0; 26];
+        buf[..len].copy_from_slice(s.as_bytes());
+
+        Self(buf, len)
+    }
+
+    /// Creates a new [`IdString`] wihtout checking that
+    /// the contents are valid id characters, and the whole string
+    /// is of the right length.
+    /// # Safety
+    /// s should have passed [Self::check]
+    pub unsafe fn from_string_unchecked(s: String) -> Self {
+        Self::from_str_unchecked(&s)
+    }
+}
+
+/// An error that can occur while parsing an IdString
+#[derive(thiserror::Error, Debug)]
+pub enum VarLenIdStringDeserializeError {
+    #[error("invalid character '{c}' at position {pos}")]
+    InvalidCharacter { pos: usize, c: char },
+    #[error("incorrect length: is {len}, expected at most {expected_most}")]
+    IncorrectLength { len: usize, expected_most: usize },
+}
+
+impl FromStr for VarLenIdString {
+    type Err = VarLenIdStringDeserializeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::check(s)?;
+
+        Ok(unsafe { Self::from_str_unchecked(s) })
+    }
+}
+
+impl TryFrom<String> for VarLenIdString {
+    type Error = VarLenIdStringDeserializeError;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Self::check(&s)?;
+
+        Ok(unsafe { Self::from_string_unchecked(s) })
+    }
+}
+
+impl AsRef<str> for VarLenIdString {
+    fn as_ref(&self) -> &str {
+        unsafe { std::str::from_utf8_unchecked(&self.0[..self.1]) }
+    }
+}
+
+impl From<VarLenIdString> for String {
+    fn from(id: VarLenIdString) -> Self {
+        id.as_ref().to_string()
+    }
+}
+
+impl std::fmt::Debug for VarLenIdString {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        <str as Display>::fmt(self.as_ref(), f)
+    }
+}
+
+impl Display for VarLenIdString {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.as_ref().fmt(f)
+    }
+}
+
+impl PartialEq<String> for VarLenIdString {
+    fn eq(&self, other: &String) -> bool {
+        self.as_ref().eq(other)
+    }
+}
+
+impl PartialEq<str> for VarLenIdString {
+    fn eq(&self, other: &str) -> bool {
+        self.as_ref().eq(other)
+    }
+}
+
+impl<'a> PartialEq<&'a str> for VarLenIdString {
+    fn eq(&self, other: &&'a str) -> bool {
+        self.as_ref().eq(*other)
+    }
+}
+
+impl PartialOrd<String> for VarLenIdString {
+    fn partial_cmp(&self, other: &String) -> Option<Ordering> {
+        Some(self.as_ref().cmp(other))
+    }
+}
+
+impl PartialOrd<str> for VarLenIdString {
+    fn partial_cmp(&self, other: &str) -> Option<Ordering> {
+        Some(self.as_ref().cmp(other))
+    }
+}
+
+impl<'a> PartialOrd<&'a str> for VarLenIdString {
+    fn partial_cmp(&self, other: &&'a str) -> Option<Ordering> {
+        Some(self.as_ref().cmp(*other))
+    }
+}
+
 macro_rules! id_impl {
-    ($name:ident) => {
+    (@dt $name:ident, $base_ty:ty) => {
         impl $name {
             pub fn datetime(&self) -> chrono::DateTime<chrono::Utc> {
                 self.0.datetime()
             }
         }
 
-        impl From<IdString> for $name {
-            fn from(id: IdString) -> Self {
+        id_impl!($name, $base_ty);
+    };
+    ($name:ident, $base_ty:ty) => {
+        impl From<$base_ty> for $name {
+            fn from(id: $base_ty) -> Self {
                 Self(id)
             }
         }
 
-        impl From<$name> for IdString {
+        impl From<$name> for $base_ty {
             fn from(id: $name) -> Self {
                 id.0
             }
         }
 
         impl FromStr for $name {
-            type Err = <IdString as FromStr>::Err;
+            type Err = <$base_ty as FromStr>::Err;
 
             fn from_str(s: &str) -> Result<Self, Self::Err> {
                 s.parse().map(Self)
@@ -176,10 +323,10 @@ macro_rules! id_impl {
         }
 
         impl TryFrom<String> for $name {
-            type Error = <IdString as TryFrom<String>>::Error;
+            type Error = <$base_ty as TryFrom<String>>::Error;
 
             fn try_from(value: String) -> Result<Self, Self::Error> {
-                IdString::try_from(value).map(Self)
+                <$base_ty>::try_from(value).map(Self)
             }
         }
 
@@ -244,49 +391,56 @@ macro_rules! id_impl {
 #[serde(transparent)]
 pub struct UserId(IdString);
 
-id_impl! {UserId}
+id_impl! {@dt UserId, IdString}
 
 /// Id type for channels.
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(transparent)]
 pub struct ChannelId(IdString);
 
-id_impl! {ChannelId}
+id_impl! {@dt ChannelId, IdString}
+
+/// Id type for channels.
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[serde(transparent)]
+pub struct CategoryId(VarLenIdString);
+
+id_impl! {CategoryId, VarLenIdString}
 
 /// Id type for messages.
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(transparent)]
 pub struct MessageId(IdString);
 
-id_impl! {MessageId}
+id_impl! {@dt MessageId, IdString}
 
 /// Id type for servers.
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(transparent)]
 pub struct ServerId(IdString);
 
-id_impl! {ServerId}
+id_impl! {@dt ServerId, IdString}
 
 /// Id type for roles.
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(transparent)]
 pub struct RoleId(IdString);
 
-id_impl! {RoleId}
+id_impl! {@dt RoleId, IdString}
 
 /// Id type for sessions.
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(transparent)]
 pub struct SessionId(IdString);
 
-id_impl! {SessionId}
+id_impl! {@dt SessionId, IdString}
 
 /// Id type for invites.
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(transparent)]
 pub struct InviteId(IdString);
 
-id_impl! {InviteId}
+id_impl! {@dt InviteId, IdString}
 
 /// Id type for members.
 ///

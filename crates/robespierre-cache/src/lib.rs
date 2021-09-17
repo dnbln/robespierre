@@ -17,7 +17,7 @@ use robespierre_models::{
         Member, MemberField, PartialMember, PartialRole, PartialServer, RoleField, Server,
         ServerField,
     },
-    users::{PartialUser, User, UserField},
+    users::{User, UserField, UserPatch},
 };
 
 #[derive(Default)]
@@ -96,7 +96,7 @@ impl Cache {
     pub async fn patch_user(
         &self,
         user_id: UserId,
-        patch: impl FnOnce() -> PartialUser,
+        patch: impl FnOnce() -> UserPatch,
         remove: Option<UserField>,
     ) {
         let mut lock = self.users.write().await;

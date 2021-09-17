@@ -18,7 +18,7 @@ impl Http {
             .await?)
     }
 
-    /// Edits an user
+    /// Edits user
     pub async fn edit_user(&self, patch: UserEditPatch) -> Result {
         self.client
             .patch(ep!(self, "/users/@me"))
