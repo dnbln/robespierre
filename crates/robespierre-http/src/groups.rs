@@ -1,4 +1,8 @@
-use robespierre_models::{channels::Channel, id::{ChannelId, UserId}, users::User};
+use robespierre_models::{
+    channels::Channel,
+    id::{ChannelId, UserId},
+    users::User,
+};
 
 use super::impl_prelude::*;
 

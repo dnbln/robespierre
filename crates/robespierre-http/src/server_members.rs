@@ -1,4 +1,9 @@
-use robespierre_models::{autumn::Attachment, id::{ServerId, UserId}, servers::{Ban, Member, MemberField, PartialMember}, users::User};
+use robespierre_models::{
+    autumn::Attachment,
+    id::{ServerId, UserId},
+    servers::{Ban, Member, MemberField, PartialMember},
+    users::User,
+};
 
 use super::impl_prelude::*;
 

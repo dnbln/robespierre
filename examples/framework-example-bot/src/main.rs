@@ -1,6 +1,6 @@
 //! Example bot to demonstrate how to
 //! use the standard framework
-//! 
+//!
 //! Base: ping-reply-pong
 //! Book chapter: framework.md
 

@@ -1,5 +1,5 @@
 //! Example bot of using extractors
-//! 
+//!
 //! Base: framework-example-bot
 //! Book chapter: extractors.md
 

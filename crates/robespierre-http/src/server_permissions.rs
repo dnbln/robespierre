@@ -1,4 +1,8 @@
-use robespierre_models::{channels::ChannelPermissions, id::{RoleId, ServerId}, servers::{PermissionTuple, ServerPermissions}};
+use robespierre_models::{
+    channels::ChannelPermissions,
+    id::{RoleId, ServerId},
+    servers::{PermissionTuple, ServerPermissions},
+};
 
 use super::impl_prelude::*;
 

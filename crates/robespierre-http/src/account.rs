@@ -1,4 +1,7 @@
-use robespierre_models::{auth::{Account, Session, SessionInfo}, id::SessionId};
+use robespierre_models::{
+    auth::{Account, Session, SessionInfo},
+    id::SessionId,
+};
 
 use super::impl_prelude::*;
 
@@ -32,7 +35,10 @@ impl Http {
         }
 
         reqwest::Client::new()
-            .post(ep!(api_root = "https://api.revolt.chat", "/auth/account/create"))
+            .post(ep!(
+                api_root = "https://api.revolt.chat",
+                "/auth/account/create"
+            ))
             .json(&CreateAccountRequest {
                 email,
                 password,
@@ -182,7 +188,10 @@ impl Http {
         }
 
         Ok(reqwest::Client::new()
-            .post(ep!(api_root = "https://api.revolt.chat", "/auth/session/login"))
+            .post(ep!(
+                api_root = "https://api.revolt.chat",
+                "/auth/session/login"
+            ))
             .json(&LoginRequest {
                 email,
                 password,

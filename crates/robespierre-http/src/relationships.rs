@@ -1,4 +1,7 @@
-use robespierre_models::{id::UserId, users::{Relationship, RelationshipStatus}};
+use robespierre_models::{
+    id::UserId,
+    users::{Relationship, RelationshipStatus},
+};
 
 use super::impl_prelude::*;
 

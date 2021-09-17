@@ -1,4 +1,10 @@
-use robespierre_models::{autumn::AttachmentId, channels::{Message, MessageFilter, ReplyData}, id::{ChannelId, MessageId}, servers::Member, users::User};
+use robespierre_models::{
+    autumn::AttachmentId,
+    channels::{Message, MessageFilter, ReplyData},
+    id::{ChannelId, MessageId},
+    servers::Member,
+    users::User,
+};
 
 use super::impl_prelude::*;
 

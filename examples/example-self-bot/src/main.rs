@@ -1,6 +1,6 @@
 //! Self bot that sends "Welcome" whenever someone joins a server,
 //! in the channel where the "User joined" message is sent.
-//! 
+//!
 //! Base: example-bot-lowlevel
 //! Book chapter: None
 
@@ -41,7 +41,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let handler = Handler;
 
-    connection.run(context, handler).await.expect("error while running the connection");
+    connection
+        .run(context, handler)
+        .await
+        .expect("error while running the connection");
 
     Ok(())
 }

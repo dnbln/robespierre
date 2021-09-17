@@ -1,4 +1,8 @@
-use robespierre_models::{bot::{Bot, BotField, PublicBot}, id::{ChannelId, ServerId, UserId}, users::User};
+use robespierre_models::{
+    bot::{Bot, BotField, PublicBot},
+    id::{ChannelId, ServerId, UserId},
+    users::User,
+};
 
 use super::impl_prelude::*;
 

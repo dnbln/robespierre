@@ -1,4 +1,8 @@
-use robespierre_models::{channels::{ChannelInviteCode, ServerChannelType}, id::{ChannelId, ServerId, UserId}, servers::{PartialServer, Server, ServerField}};
+use robespierre_models::{
+    channels::{ChannelInviteCode, ServerChannelType},
+    id::{ChannelId, ServerId, UserId},
+    servers::{PartialServer, Server, ServerField},
+};
 
 use super::impl_prelude::*;
 
@@ -139,7 +143,6 @@ impl Http {
         Ok(())
     }
 }
-
 
 #[derive(serde::Deserialize, Debug, Clone)]
 #[serde(tag = "type")]

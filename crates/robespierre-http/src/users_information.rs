@@ -1,4 +1,7 @@
-use robespierre_models::{id::UserId, users::{Profile, User, UserEditPatch}};
+use robespierre_models::{
+    id::UserId,
+    users::{Profile, User, UserEditPatch},
+};
 
 use super::impl_prelude::*;
 

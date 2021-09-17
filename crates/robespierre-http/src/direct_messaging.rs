@@ -1,4 +1,7 @@
-use robespierre_models::{channels::{Channel, DirectMessageChannel}, id::UserId};
+use robespierre_models::{
+    channels::{Channel, DirectMessageChannel},
+    id::UserId,
+};
 
 use super::impl_prelude::*;
 

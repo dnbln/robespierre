@@ -1,6 +1,6 @@
 //! Example to show how to store data in the context
 //! and use it in command handlers
-//! 
+//!
 //! Base: framework-example-bot
 //! Book chapter: user-data.md
 
