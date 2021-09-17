@@ -1,3 +1,8 @@
+//! Testing grounds for new features.
+//!
+//! Base: None
+//! Book chapter: None
+
 use std::collections::HashSet;
 use std::convert::Infallible;
 use std::future::Future;

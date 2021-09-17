@@ -32,6 +32,7 @@ pub struct ReadyEvent {
 /// Any message that the server can send to the client.
 #[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(tag = "type")]
+#[serde(deny_unknown_fields)]
 pub enum ServerToClientEvent {
     Error {
         error: String,

@@ -1,3 +1,8 @@
+//! A bot that replies with "pong" whenever someone says "ping"
+//!
+//! Base: None
+//! Book chapter: writing-an-example-bot.md
+
 // src/main.rs
 use robespierre::model::MessageExt;
 use robespierre::Authentication;

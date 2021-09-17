@@ -10,13 +10,14 @@ Types
 
 // https://github.com/revoltchat/api/blob/094f8e650dbbbfd6a61be60d20943ea471a816c6/types/Sync.ts#L3-L5
 
-#[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(transparent)]
 pub struct UserSettings(pub HashMap<String, SettingTuple>);
 
 // https://github.com/revoltchat/api/blob/094f8e650dbbbfd6a61be60d20943ea471a816c6/types/Sync.ts#L7-L10
 
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[serde(deny_unknown_fields)]
 pub struct ChannelCompositeKey {
     pub channel: ChannelId,
     pub user: UserId,
@@ -25,6 +26,7 @@ pub struct ChannelCompositeKey {
 // https://github.com/revoltchat/api/blob/094f8e650dbbbfd6a61be60d20943ea471a816c6/types/Sync.ts#L12-L17
 
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[serde(deny_unknown_fields)]
 pub struct ChannelUnread {
     #[serde(rename = "_id")]
     pub id: ChannelCompositeKey,
@@ -36,6 +38,7 @@ pub struct ChannelUnread {
 // https://github.com/revoltchat/api/blob/094f8e650dbbbfd6a61be60d20943ea471a816c6/types/Sync.ts#L19-L23
 
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[serde(deny_unknown_fields)]
 pub struct WebPushSubscription {
     pub endpoint: String,
     pub p256dh: String,

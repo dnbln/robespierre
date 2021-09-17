@@ -1,3 +1,8 @@
+//! Example of a bot without the `robespierre` crate.
+//!
+//! Base: None
+//! Book chapter: None
+
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
     Arc,

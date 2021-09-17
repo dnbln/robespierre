@@ -1,3 +1,9 @@
+//! Example bot to demonstrate how to
+//! use the standard framework
+//! 
+//! Base: ping-reply-pong
+//! Book chapter: framework.md
+
 // src/main.rs
 use robespierre::framework::standard::{macros::command, CommandResult, FwContext};
 use robespierre::framework::standard::{Command, CommandCodeFn, StandardFramework};

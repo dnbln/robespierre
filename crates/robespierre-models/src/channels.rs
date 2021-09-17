@@ -16,6 +16,7 @@ Types
 // https://github.com/revoltchat/api/blob/master/types/Channels.ts#L5-L24
 
 #[derive(Deserialize, Serialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[serde(deny_unknown_fields)]
 pub struct LastMessage {
     #[serde(rename = "_id")]
     pub id: MessageId,
@@ -31,6 +32,7 @@ Note: leave `channel_type`, and use that as the #[serde(tag=)] of `Channel`, but
 
 /// Saved Messages channel has only one participant, the user who created it.
 #[derive(Deserialize, Serialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[serde(deny_unknown_fields)]
 pub struct SavedMessagesChannel {
     #[serde(rename = "_id")]
     pub id: ChannelId,
@@ -43,6 +45,7 @@ pub struct SavedMessagesChannel {
 // https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Channels.ts#L43-L62
 
 #[derive(Deserialize, Serialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[serde(deny_unknown_fields)]
 pub struct DirectMessageChannel {
     #[serde(rename = "_id")]
     pub id: ChannelId,
@@ -59,6 +62,7 @@ pub struct DirectMessageChannel {
 // https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Channels.ts#L64-L108
 
 #[derive(Deserialize, Serialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[serde(deny_unknown_fields)]
 pub struct GroupChannel {
     #[serde(rename = "_id")]
     pub id: ChannelId,
@@ -94,6 +98,7 @@ pub struct GroupChannel {
 // https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Channels.ts#L110-L149
 
 #[derive(Deserialize, Serialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct ServerChannel {
     #[serde(rename = "_id")]
     pub id: ChannelId,
@@ -123,6 +128,7 @@ pub struct ServerChannel {
 // https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Channels.ts#L151-L155
 
 #[derive(Deserialize, Serialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct TextChannel {
     #[serde(flatten)]
     pub server_channel: ServerChannel,
@@ -137,6 +143,7 @@ pub struct TextChannel {
 // https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Channels.ts#L157-L159
 
 #[derive(Deserialize, Serialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct VoiceChannel {
     #[serde(flatten)]
     pub server_channel: ServerChannel,
@@ -151,6 +158,7 @@ pub struct VoiceChannel {
 /// A channel
 #[derive(Deserialize, Serialize, Debug, Clone, Eq, PartialEq)]
 #[serde(tag = "channel_type")]
+#[serde(deny_unknown_fields)]
 pub enum Channel {
     SavedMessages(SavedMessagesChannel),
     DirectMessage(DirectMessageChannel),
@@ -162,6 +170,7 @@ pub enum Channel {
 // https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Channels.ts#L163-L210
 /// A message
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(deny_unknown_fields)]
 pub struct Message {
     #[serde(rename = "_id")]
     pub id: MessageId,
@@ -184,6 +193,7 @@ pub struct Message {
 
 #[derive(Deserialize, Serialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 #[serde(untagged)]
+#[serde(deny_unknown_fields)]
 pub enum MessageContent {
     Content(String),
     SystemMessage(SystemMessage),
@@ -191,6 +201,7 @@ pub enum MessageContent {
 
 #[derive(Deserialize, Serialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 #[serde(tag = "type", rename_all = "snake_case")]
+#[serde(deny_unknown_fields)]
 pub enum SystemMessage {
     Text { content: String },
     UserAdded { id: UserId, by: UserId },
@@ -210,6 +221,7 @@ Extra
 
 /// Data about what messages to reply to
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(deny_unknown_fields)]
 pub struct ReplyData {
     pub id: MessageId,
     pub mention: bool,
@@ -476,6 +488,7 @@ impl PartialChannel {
 /// A message where all the fields are optional, and can be treated as a patch
 /// that can be applied to a [`Message`].
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(deny_unknown_fields)]
 pub struct PartialMessage {
     #[serde(rename = "_id", default, skip_serializing_if = "Option::is_none")]
     pub id: Option<MessageId>,
@@ -578,6 +591,7 @@ impl From<WrappedDate> for Date {
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct WrappedDate {
     #[serde(rename = "$date")]
     date: DateTime<Utc>,
@@ -647,6 +661,7 @@ impl Display for ChannelInviteCode {
 }
 
 #[derive(Deserialize, Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(deny_unknown_fields)]
 pub struct CreateChannelInviteResponse {
     code: ChannelInviteCode,
 }

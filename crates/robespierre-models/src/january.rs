@@ -8,6 +8,7 @@ Types
 
 /// Embedded image
 #[derive(Serialize, Deserialize, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(deny_unknown_fields)]
 pub struct EmbedImage {
     pub url: String,
     pub width: u32,
@@ -19,6 +20,7 @@ pub struct EmbedImage {
 
 /// Embedded video
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[serde(deny_unknown_fields)]
 pub struct EmbedVideo {
     pub url: String,
     pub width: u32,
@@ -30,6 +32,7 @@ pub struct EmbedVideo {
 /// Data about an embed of a special website, if it is the case
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(tag = "type")]
+#[serde(deny_unknown_fields)]
 pub enum EmbedSpecial {
     None,
     YouTube {
@@ -76,6 +79,7 @@ pub enum SizeType {
 
 #[derive(Serialize, Deserialize, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(tag = "type")]
+#[serde(deny_unknown_fields)]
 pub enum Embed {
     None,
     Website {

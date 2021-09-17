@@ -8,6 +8,7 @@ use crate::{
 // https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Invites.ts#L4-L26
 
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[serde(deny_unknown_fields)]
 pub struct ServerInvite {
     #[serde(rename = "_id")]
     pub id: InviteId,
@@ -21,6 +22,7 @@ pub struct ServerInvite {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(tag = "type")]
+#[serde(deny_unknown_fields)]
 pub enum Invite {
     Invite(ServerInvite),
 }
@@ -28,6 +30,7 @@ pub enum Invite {
 // https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Invites.ts#L30-L42
 
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[serde(deny_unknown_fields)]
 pub struct ServerRetrievedInvite {
     pub server_id: ServerId,
     pub server_name: String,
@@ -47,6 +50,7 @@ pub struct ServerRetrievedInvite {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(tag = "type")]
+#[serde(deny_unknown_fields)]
 pub enum RetrievedInvite {
     Server(ServerRetrievedInvite),
 }

@@ -19,6 +19,7 @@ pub type MemberCompositeKey = MemberId;
 // https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Servers.ts#L10-L18
 
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[serde(deny_unknown_fields)]
 pub struct Member {
     #[serde(rename = "_id")]
     pub id: MemberCompositeKey,
@@ -33,6 +34,7 @@ pub struct Member {
 // https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Servers.ts#L20-L23
 
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[serde(deny_unknown_fields)]
 pub struct Ban {
     #[serde(rename = "_id")]
     pub id: MemberCompositeKey,
@@ -69,6 +71,7 @@ pub type Color = String;
 // https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Servers.ts#L48-L71
 
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[serde(deny_unknown_fields)]
 pub struct Role {
     /// The name of the role.
     pub name: String,
@@ -99,6 +102,7 @@ pub struct Role {
 // https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Servers.ts#L73
 
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[serde(deny_unknown_fields)]
 pub struct RoleInformation {
     pub name: String,
     #[serde(rename = "colour", default, skip_serializing_if = "Option::is_none")]
@@ -112,6 +116,7 @@ pub struct RoleInformation {
 // https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Servers.ts#L75-L81
 
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[serde(deny_unknown_fields)]
 pub struct Category {
     pub id: ChannelId,
     pub title: String,
@@ -121,6 +126,7 @@ pub struct Category {
 // https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Servers.ts#L83-L92
 
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[serde(deny_unknown_fields)]
 pub struct SystemMessageChannels {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub user_joined: Option<ChannelId>,
@@ -136,6 +142,7 @@ pub struct SystemMessageChannels {
 
 /// A server.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct Server {
     #[serde(rename = "_id")]
     pub id: ServerId,
@@ -168,6 +175,7 @@ Extra
 /// A member where all the fields are optional, and can be treated as
 /// a patch that can be applied to a [`Member`].
 #[derive(Serialize, Deserialize, Default, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[serde(deny_unknown_fields)]
 pub struct PartialMember {
     #[serde(rename = "_id", default, skip_serializing_if = "Option::is_none")]
     pub id: Option<MemberId>,
@@ -270,6 +278,7 @@ impl<'a> Iterator for RolesIter<'a> {
 /// A role where all the fields are optional, and can be used to
 /// describe a patch applied to a role.
 #[derive(Serialize, Deserialize, Debug, Default, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[serde(deny_unknown_fields)]
 pub struct PartialRole {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -338,6 +347,7 @@ impl RoleField {
 /// A server where all the fields are optional, and so can be
 /// treated as a patch that can be applied to a [`Server`].
 #[derive(Serialize, Deserialize, Default, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct PartialServer {
     #[serde(rename = "_id", default, skip_serializing_if = "Option::is_none")]
     pub id: Option<ServerId>,

@@ -1,6 +1,7 @@
 /// Data about a revolt instance obtained by
 /// making a `GET /` on the api.
 #[derive(serde::Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct RevoltConfiguration {
     pub revolt: String,
     pub features: RevoltInstanceFeatures,
@@ -12,6 +13,7 @@ pub struct RevoltConfiguration {
 /// Data about Autumn (file server microservice).
 #[derive(serde::Deserialize, Clone)]
 #[serde(transparent)]
+#[serde(deny_unknown_fields)]
 pub struct Autumn(EnabledUrl);
 
 impl Autumn {
@@ -29,6 +31,7 @@ impl Autumn {
 /// Data about January (image proxy and embed generator).
 #[derive(serde::Deserialize, Clone)]
 #[serde(transparent)]
+#[serde(deny_unknown_fields)]
 pub struct January(EnabledUrl);
 
 impl January {
@@ -46,6 +49,7 @@ impl January {
 /// Data about Voso (legacy voice server).
 #[derive(serde::Deserialize, Clone)]
 #[serde(transparent)]
+#[serde(deny_unknown_fields)]
 pub struct Voso(EnabledUrlWs);
 
 impl Voso {
@@ -66,12 +70,14 @@ impl Voso {
 }
 
 #[derive(serde::Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
 struct EnabledUrl {
     enabled: bool,
     url: String,
 }
 
 #[derive(serde::Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
 struct EnabledUrlWs {
     enabled: bool,
     url: String,
@@ -81,6 +87,7 @@ struct EnabledUrlWs {
 /// Features
 
 #[derive(serde::Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct RevoltInstanceFeatures {
     // pub registration: bool,
     pub captcha: CaptchaInfo,
@@ -98,6 +105,7 @@ pub struct RevoltInstanceFeatures {
 
 /// Captcha feature
 #[derive(serde::Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct CaptchaInfo {
     /// Whether it is enabled or not
     pub enabled: bool,

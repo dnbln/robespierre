@@ -1,3 +1,8 @@
+//! Example bot of using extractors
+//! 
+//! Base: framework-example-bot
+//! Book chapter: extractors.md
+
 use robespierre::framework::standard::extractors::{Args, Author, RawArgs, Rest};
 use robespierre::framework::standard::{macros::command, CommandResult, FwContext};
 use robespierre::framework::standard::{Command, CommandCodeFn, StandardFramework};

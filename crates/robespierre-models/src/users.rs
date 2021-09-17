@@ -92,6 +92,7 @@ bitflags! {
 
 /// Bot information
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[serde(deny_unknown_fields)]
 pub struct BotInformation {
     /// The User ID of the owner of this bot
     pub owner: UserId,
@@ -138,6 +139,12 @@ pub struct User {
     /// If it is not a bot, then it will be [`None`]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bot: Option<BotInformation>,
+
+    /// Profile data
+    /// Sometimes the server sends it although fetching
+    /// an user doesn't retrieve the profile data too.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub profile: Option<Profile>,
 }
 
 // https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Users.ts#L115-L122
@@ -157,6 +164,7 @@ bitflags! {
 
 /// Profile data about an user.
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[serde(deny_unknown_fields)]
 pub struct Profile {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
@@ -194,6 +202,8 @@ pub struct PartialUser {
     pub flags: Option<UserFlags>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bot: Option<BotInformation>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub profile: Option<Profile>,
 }
 
 impl PartialUser {
@@ -212,6 +222,7 @@ impl PartialUser {
             online: ponline,
             flags: pflags,
             bot: pbot,
+            profile: pprofile,
         } = self;
         let User {
             id,
@@ -224,6 +235,7 @@ impl PartialUser {
             online,
             flags,
             bot,
+            profile,
         } = user;
 
         if let Some(pid) = pid {
@@ -255,6 +267,9 @@ impl PartialUser {
         }
         if let Some(pbot) = pbot {
             *bot = Some(pbot);
+        }
+        if let Some(pprofile) = pprofile {
+            *profile = Some(pprofile);
         }
     }
 }

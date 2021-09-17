@@ -1,5 +1,9 @@
+//! Bot that uses another instance of revolt, instead of the one at `revolt.chat`.
+//!
+//! Base: ping-reply-pong
+//! Book chapter: None
+
 // src/main.rs
-//! `ping-reply-pong`, but connecting to a self hosted instance of revolt.
 
 use robespierre::model::MessageExt;
 use robespierre::Authentication;

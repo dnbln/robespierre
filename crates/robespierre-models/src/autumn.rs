@@ -84,6 +84,7 @@ impl fmt::Display for AttachmentId {
 /// Attachment metadata
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(tag = "type")]
+#[serde(deny_unknown_fields)]
 pub enum AttachmentMetadata {
     File,
     Text,
@@ -128,6 +129,7 @@ impl fmt::Display for AttachmentTag {
 /// Attachment to a message, but can be any other media
 /// like avatars, server icons, channel icons, banners
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[serde(deny_unknown_fields)]
 pub struct Attachment {
     #[serde(rename = "_id")]
     pub id: AttachmentId,
@@ -142,6 +144,7 @@ pub struct Attachment {
 
 /// File serving parameters
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[serde(deny_unknown_fields)]
 pub struct SizeOptions {
     /// Width of resized image
     #[serde(default, skip_serializing_if = "Option::is_none")]
