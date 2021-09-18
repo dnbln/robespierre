@@ -11,7 +11,7 @@ use robespierre_models::{
     id::ChannelId,
 };
 use std::result::Result as StdResult;
-use tokio::{net::TcpStream, sync::mpsc::UnboundedSender};
+use tokio::{net::TcpStream, sync::mpsc::UnboundedSender, time::Interval};
 use tokio_rustls::client::TlsStream;
 
 pub mod typing;
@@ -40,7 +40,10 @@ struct ConnectionInternal {
 }
 
 /// A websocket connection.
-pub struct Connection(ConnectionInternal);
+pub struct Connection {
+    internal: ConnectionInternal,
+    ping_interval: Interval,
+}
 
 /// A value that can be used to authenticate on the websocket, either as a bot or as a non-bot user.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -116,7 +119,10 @@ impl Connection {
         };
         internal.authenticate(auth.into()).await?;
 
-        let connection = Self(internal);
+        let connection = Self {
+            internal,
+            ping_interval: tokio::time::interval(std::time::Duration::from_secs(15)),
+        };
 
         Ok(connection)
     }
@@ -134,8 +140,6 @@ impl Connection {
         C: Context,
         H: RawEventHandler<Context = C>,
     {
-        let mut int = tokio::time::interval(std::time::Duration::from_secs(15));
-
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<ConnectionMessage>();
 
         enum Event {
@@ -152,10 +156,16 @@ impl Connection {
             // Event::ConnectionMessage = we got a message from a handler, can be something like send "BeginTyping", "EndTyping" to the ws, try to close the socket
             // Event::Tick = we didn't get any event, but we have to ping the server or it will close the connection
             // Event::TypingManagerTick = we didn't get any event, but we have to send all the "BeginTyping" events to the server or it will timeout and close them.
+
+            let Self {
+                internal,
+                ping_interval,
+            } = &mut self;
+
             let event = futures::select! {
-                event = self.get_event().fuse() => Event::FromServer(event),
+                event = internal.get_event().fuse() => Event::FromServer(event),
                 connection_message = rx.recv().fuse() => Event::ConnectionMessage(connection_message),
-                _ = int.tick().fuse() => Event::Tick,
+                _ = ping_interval.tick().fuse() => Event::Tick,
                 _ = typing_session_manager.tick().fuse() => Event::TypingManagerTick,
             };
 
@@ -205,14 +215,44 @@ impl Connection {
         }
     }
 
+    /// Suitable for lower-level, manual handling of events.
+    pub async fn next(&mut self) -> Result<ServerToClientEvent> {
+        enum Event {
+            FromServer(Result<ServerToClientEvent>),
+            Tick,
+        }
+
+        loop {
+            let Self {
+                internal,
+                ping_interval,
+            } = self;
+
+            let event = futures::select! {
+                event = internal.get_event().fuse() => Event::FromServer(event),
+                _ = ping_interval.tick().fuse() => Event::Tick,
+            };
+
+            match event {
+                Event::FromServer(e) => match e? {
+                    ServerToClientEvent::Pong { .. } => {}
+                    e => return Ok(e),
+                },
+                Event::Tick => {
+                    self.hb().await?;
+                }
+            }
+        }
+    }
+
     /// Sends a ping message to the server, so it doesn't close the connection.
     pub async fn hb(&mut self) -> Result {
-        self.0.hb().await
+        self.internal.hb().await
     }
 
     /// Gets the next event from the server.
     pub async fn get_event(&mut self) -> Result<ServerToClientEvent> {
-        self.0.get_event().await
+        self.internal.get_event().await
     }
 
     /// Sends a [`ClientToServerEvent::BeginTyping`] event, for the given channel.
@@ -220,21 +260,21 @@ impl Connection {
     /// Has a timeout of ~3 seconds, so if you want it to display "... is typing"
     /// for longer than that, you have to call it again.
     pub async fn start_typing(&mut self, channel: ChannelId) -> Result {
-        self.0
+        self.internal
             .send_event(ClientToServerEvent::BeginTyping { channel })
             .await
     }
 
     /// Sends a [`ClientToServerEvent::EndTyping`] event, for the given channel.
     pub async fn stop_typing(&mut self, channel: ChannelId) -> Result {
-        self.0
+        self.internal
             .send_event(ClientToServerEvent::EndTyping { channel })
             .await
     }
 
     /// Closes the websocket.
     pub async fn close(mut self) -> Result {
-        self.0.close().await?;
+        self.internal.close().await?;
 
         Ok(())
     }
