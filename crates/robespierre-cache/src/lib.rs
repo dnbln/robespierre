@@ -20,10 +20,16 @@ use robespierre_models::{
     users::{User, UserField, UserPatch},
 };
 
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct CacheConfig {
     /// number of messages to cache / channel, 0 for no caching
     pub messages: usize,
+}
+
+impl CacheConfig {
+    pub fn messages(self, messages: usize) -> CacheConfig {
+        Self { messages, ..self }
+    }
 }
 
 pub struct Cache {
@@ -109,6 +115,27 @@ impl Cache {
             }
         }
     }
+
+    pub async fn get_users_aggregate<T, F>(&self, f: F) -> T
+    where
+        F: FnOnce(UserIter) -> T,
+    {
+        f(UserIter(self.users.read().await.values()))
+    }
+}
+
+pub struct UserIter<'a>(std::collections::hash_map::Values<'a, UserId, User>);
+
+impl<'a> Iterator for UserIter<'a> {
+    type Item = &'a User;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
 }
 
 impl Cache {
@@ -150,6 +177,31 @@ impl Cache {
                 remove.remove_patch(server);
             }
         }
+    }
+
+    pub async fn delete_server(&self, server_id: ServerId) {
+        self.servers.write().await.remove(&server_id);
+    }
+
+    pub async fn get_servers_aggregate<T, F>(&self, f: F) -> T
+    where
+        F: FnOnce(ServerIter) -> T,
+    {
+        f(ServerIter(self.servers.read().await.values()))
+    }
+}
+
+pub struct ServerIter<'a>(std::collections::hash_map::Values<'a, ServerId, Server>);
+
+impl<'a> Iterator for ServerIter<'a> {
+    type Item = &'a Server;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
     }
 }
 
@@ -204,6 +256,27 @@ impl Cache {
             }
         }
     }
+
+    pub async fn get_members_aggregate<T, F>(&self, f: F) -> T
+    where
+        F: FnOnce(MemberIter) -> T,
+    {
+        f(MemberIter(self.members.read().await.values()))
+    }
+}
+
+pub struct MemberIter<'a>(std::collections::hash_map::Values<'a, MemberId, Member>);
+
+impl<'a> Iterator for MemberIter<'a> {
+    type Item = &'a Member;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
 }
 
 cache_field! {ChannelId, Channel, get_channel, get_channel_data, channels}
@@ -231,6 +304,31 @@ impl Cache {
                 remove.remove_patch(channel);
             }
         }
+    }
+
+    pub async fn delete_channel(&self, channel_id: ChannelId) {
+        self.channels.write().await.remove(&channel_id);
+    }
+
+    pub async fn get_channels_aggregate<T, F>(&self, f: F) -> T
+    where
+        F: FnOnce(ChannelIter) -> T,
+    {
+        f(ChannelIter(self.channels.read().await.values()))
+    }
+}
+
+pub struct ChannelIter<'a>(std::collections::hash_map::Values<'a, ChannelId, Channel>);
+
+impl<'a> Iterator for ChannelIter<'a> {
+    type Item = &'a Channel;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
     }
 }
 
@@ -299,6 +397,29 @@ impl Cache {
                 patch.patch(message);
             }
         }
+    }
+
+    pub async fn get_messages_aggregate<T, F>(&self, channel_id: ChannelId, f: F) -> Option<T>
+    where
+        F: FnOnce(MessageIter) -> T,
+    {
+        let lock = self.messages.read().await;
+        let iter = lock.get(&channel_id)?.values();
+        Some(f(MessageIter(iter)))
+    }
+}
+
+pub struct MessageIter<'a>(std::collections::hash_map::Values<'a, MessageId, Message>);
+
+impl<'a> Iterator for MessageIter<'a> {
+    type Item = &'a Message;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
     }
 }
 
@@ -408,7 +529,9 @@ impl CommitToCache for ServerToClientEvent {
             ServerToClientEvent::ChannelUpdate { id, data, clear } => {
                 cache.patch_channel(*id, || data.clone(), *clear).await;
             }
-            ServerToClientEvent::ChannelDelete { id } => {}
+            ServerToClientEvent::ChannelDelete { id } => {
+                cache.delete_channel(*id).await;
+            }
             ServerToClientEvent::ChannelGroupJoin { id, user } => {}
             ServerToClientEvent::ChannelGroupLeave { id, user } => {}
             ServerToClientEvent::ChannelStartTyping { id, user } => {}
@@ -421,7 +544,9 @@ impl CommitToCache for ServerToClientEvent {
             ServerToClientEvent::ServerUpdate { id, data, clear } => {
                 cache.patch_server(*id, || data.clone(), *clear).await;
             }
-            ServerToClientEvent::ServerDelete { id } => {}
+            ServerToClientEvent::ServerDelete { id } => {
+                cache.delete_server(*id).await;
+            }
             ServerToClientEvent::ServerMemberUpdate { id, data, clear } => {
                 cache.patch_member(*id, || data.clone(), *clear).await;
             }

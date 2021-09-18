@@ -74,6 +74,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .command(|| Command::new("ulid_timestamp", ulid_timestamp as CommandCodeFn))
                 .command(|| Command::new("arg_test", arg_test as CommandCodeFn).owners_only(true))
                 .command(|| Command::new("say", say as CommandCodeFn).owners_only(true))
+                .command(|| {
+                    Command::new("get_server_count", get_server_count as CommandCodeFn)
+                        .owners_only(true)
+                })
         })
         .normal_message(normal_message as NormalMessageHandlerCodeFn)
         .after(after_handler as AfterHandlerCodeFn);
@@ -83,6 +87,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             ctx,
             CacheWrap::new(EventHandlerWrap::new(FrameworkWrap::new(fw, Handler))),
         )
+        .await?;
+
+    Ok(())
+}
+
+#[command]
+async fn get_server_count(ctx: &FwContext, message: &Message) -> CommandResult {
+    let count = ctx
+        .cache()
+        .unwrap()
+        .get_servers_aggregate(|servers| servers.count())
+        .await;
+
+    message
+        .reply(ctx, format!("Server count is {}", count))
         .await?;
 
     Ok(())

@@ -9,6 +9,7 @@ use robespierre_models::{
     auth::Session,
     autumn::{AttachmentId, AttachmentTag},
     core::RevoltConfiguration,
+    id::UserId,
 };
 
 /// Any error that can happen while requesting / decoding
@@ -186,6 +187,10 @@ impl Http {
     /// Gets the websocket url
     pub fn get_ws_url(&self) -> &str {
         &self.revolt_config.ws
+    }
+
+    pub async fn get_self_id(&self) -> Result<UserId> {
+        Ok(self.fetch_account().await?.id)
     }
 
     /// Uploads a file to autumn, returning the [`AttachmentId`]
