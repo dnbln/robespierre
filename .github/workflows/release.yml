@@ -31,6 +31,10 @@ jobs:
           command: publish
           args: --verbose --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --manifest-path ./crates/robespierre-fw-macros/Cargo.toml
 
+      - name: Sleep for 30 seconds (while index is updating)
+        run: sleep 30s
+        shell: bash
+
       - name: Update 1
         uses: actions-rs/cargo@v1
         with:
@@ -53,6 +57,10 @@ jobs:
         with:
           command: publish
           args: --verbose --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --manifest-path crates/robespierre-cache/Cargo.toml
+      
+      - name: Sleep for 30 seconds (while index is updating)
+        run: sleep 30s
+        shell: bash
 
       - name: Update 2
         uses: actions-rs/cargo@v1
