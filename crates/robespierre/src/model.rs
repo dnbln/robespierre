@@ -22,18 +22,16 @@ impl<T> AsRefContext for T where T: AsRef<Context> + Send + Sync {}
 
 // commit_to_cache implementation when there is no cache
 #[cfg(not(feature = "cache"))]
-#[async_trait::async_trait]
 trait CommitToCache {
-    async fn commit_to_cache<T>(self, cache: T) -> Self
+    fn commit_to_cache<T>(self, cache: T) -> std::future::Ready<Self>
     where
         Self: Sized,
     {
-        self
+        std::future::ready(self)
     }
 }
 
 #[cfg(not(feature = "cache"))]
-#[async_trait::async_trait]
 impl<T> CommitToCache for T {}
 
 #[async_trait::async_trait]

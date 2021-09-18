@@ -153,27 +153,31 @@ pub trait EventHandler: Send + Sync {
 /// to the inner [`EventHandler`]
 #[cfg(all(feature = "events", feature = "cache"))]
 #[derive(Clone)]
-pub struct CacheWrap<Ctx: HasCache + Clone + 'static, T: RawEventHandler<Context = Ctx>>(T);
+pub struct CacheWrap<Inner>(Inner)
+where
+    Inner: RawEventHandler,
+    Inner::Context: HasCache + Clone + 'static;
 
 #[cfg(all(feature = "events", feature = "cache"))]
-impl<Ctx, T> CacheWrap<Ctx, T>
+impl<Inner> CacheWrap<Inner>
 where
-    Ctx: HasCache + Clone + 'static,
-    T: RawEventHandler<Context = Ctx>,
+    Inner: RawEventHandler,
+    Inner::Context: HasCache + Clone + 'static,
 {
     /// Creates a new [`CacheWrap`]
-    pub fn new(inner: T) -> Self {
+    pub fn new(inner: Inner) -> Self {
         Self(inner)
     }
 }
 
 #[cfg(all(feature = "events", feature = "cache"))]
 #[async_trait::async_trait]
-impl<T, Ctx: HasCache + Clone + 'static> RawEventHandler for CacheWrap<Ctx, T>
+impl<Inner> RawEventHandler for CacheWrap<Inner>
 where
-    T: RawEventHandler<Context = Ctx>,
+    Inner: RawEventHandler,
+    Inner::Context: HasCache + Clone + 'static,
 {
-    type Context = Ctx;
+    type Context = Inner::Context;
 
     async fn handle(self, ctx: Self::Context, event: ServerToClientEvent) {
         event.commit_to_cache_ref(&ctx).await;
@@ -186,22 +190,22 @@ where
 #[derive(Clone)]
 pub struct FrameworkWrap<
     FrameworkContext: From<Context> + Send + Sync + 'static,
-    T: EventHandler + Clone + 'static,
+    Inner: EventHandler + Clone + 'static,
 > {
     fw: Arc<RwLock<Box<dyn Framework<Context = FrameworkContext> + 'static>>>,
-    handler: T,
+    inner: Inner,
 }
 
 #[cfg(all(feature = "events", feature = "framework"))]
 impl<
         FrameworkContext: From<Context> + Send + Sync + 'static,
-        T: EventHandler + Clone + 'static,
-    > FrameworkWrap<FrameworkContext, T>
+        Inner: EventHandler + Clone + 'static,
+    > FrameworkWrap<FrameworkContext, Inner>
 {
-    pub fn new<Fw: Framework<Context = FrameworkContext> + 'static>(fw: Fw, handler: T) -> Self {
+    pub fn new<Fw: Framework<Context = FrameworkContext> + 'static>(fw: Fw, inner: Inner) -> Self {
         Self {
             fw: Arc::new(RwLock::new(Box::new(fw))),
-            handler,
+            inner,
         }
     }
 }
@@ -210,11 +214,11 @@ impl<
 #[async_trait::async_trait]
 impl<
         FrameworkContext: From<Context> + Send + Sync + 'static,
-        T: EventHandler + Clone + 'static,
-    > EventHandler for FrameworkWrap<FrameworkContext, T>
+        Inner: EventHandler + Clone + 'static,
+    > EventHandler for FrameworkWrap<FrameworkContext, Inner>
 {
     async fn on_ready(&self, ctx: Context, ready: ReadyEvent) {
-        self.handler.on_ready(ctx, ready).await
+        self.inner.on_ready(ctx, ready).await
     }
 
     async fn on_message(&self, ctx: Context, message: Message) {
@@ -225,7 +229,7 @@ impl<
             .handle(FrameworkContext::from(ctx.clone()), &message)
             .await;
         let message = Arc::try_unwrap(message).expect("Do not store `Arc<Message>`s while handling them in the framework. Instead, clone the inner `Message`s.");
-        self.handler.on_message(ctx, message).await
+        self.inner.on_message(ctx, message).await
     }
 
     async fn on_message_update(
@@ -235,19 +239,19 @@ impl<
         message: MessageId,
         modifications: PartialMessage,
     ) {
-        self.handler
+        self.inner
             .on_message_update(ctx, channel, message, modifications)
             .await
     }
 
     async fn on_message_delete(&self, ctx: Context, channel_id: ChannelId, message_id: MessageId) {
-        self.handler
+        self.inner
             .on_message_delete(ctx, channel_id, message_id)
             .await
     }
 
     async fn on_channel_create(&self, ctx: Context, channel: Channel) {
-        self.handler.on_channel_create(ctx, channel).await
+        self.inner.on_channel_create(ctx, channel).await
     }
 
     async fn on_channel_update(
@@ -257,29 +261,29 @@ impl<
         modifications: PartialChannel,
         remove: Option<ChannelField>,
     ) {
-        self.handler
+        self.inner
             .on_channel_update(ctx, channel_id, modifications, remove)
             .await
     }
 
     async fn on_channel_delete(&self, ctx: Context, channel_id: ChannelId) {
-        self.handler.on_channel_delete(ctx, channel_id).await
+        self.inner.on_channel_delete(ctx, channel_id).await
     }
 
     async fn on_group_join(&self, ctx: Context, id: ChannelId, user: UserId) {
-        self.handler.on_group_join(ctx, id, user).await
+        self.inner.on_group_join(ctx, id, user).await
     }
 
     async fn on_group_leave(&self, ctx: Context, id: ChannelId, user: UserId) {
-        self.handler.on_group_leave(ctx, id, user).await
+        self.inner.on_group_leave(ctx, id, user).await
     }
 
     async fn on_start_typing(&self, ctx: Context, channel: ChannelId, user: UserId) {
-        self.handler.on_start_typing(ctx, channel, user).await
+        self.inner.on_start_typing(ctx, channel, user).await
     }
 
     async fn on_stop_typing(&self, ctx: Context, channel: ChannelId, user: UserId) {
-        self.handler.on_stop_typing(ctx, channel, user).await
+        self.inner.on_stop_typing(ctx, channel, user).await
     }
 
     async fn on_server_update(
@@ -289,17 +293,17 @@ impl<
         modifications: PartialServer,
         remove: Option<ServerField>,
     ) {
-        self.handler
+        self.inner
             .on_server_update(ctx, server, modifications, remove)
             .await
     }
 
     async fn on_server_delete(&self, ctx: Context, server: ServerId) {
-        self.handler.on_server_delete(ctx, server).await
+        self.inner.on_server_delete(ctx, server).await
     }
 
     async fn on_server_member_join(&self, ctx: Context, server: ServerId, user: UserId) {
-        self.handler.on_server_member_join(ctx, server, user).await
+        self.inner.on_server_member_join(ctx, server, user).await
     }
 
     async fn on_server_member_update(
@@ -309,13 +313,13 @@ impl<
         modifications: PartialMember,
         remove: Option<MemberField>,
     ) {
-        self.handler
+        self.inner
             .on_server_member_update(ctx, member, modifications, remove)
             .await
     }
 
     async fn on_server_member_leave(&self, ctx: Context, server: ServerId, user: UserId) {
-        self.handler.on_server_member_leave(ctx, server, user).await
+        self.inner.on_server_member_leave(ctx, server, user).await
     }
 
     async fn on_server_role_update(
@@ -326,13 +330,13 @@ impl<
         modifications: PartialRole,
         remove: Option<RoleField>,
     ) {
-        self.handler
+        self.inner
             .on_server_role_update(ctx, server, role, modifications, remove)
             .await
     }
 
     async fn on_server_role_delete(&self, ctx: Context, server: ServerId, role: RoleId) {
-        self.handler.on_server_role_delete(ctx, server, role).await
+        self.inner.on_server_role_delete(ctx, server, role).await
     }
 
     async fn on_user_update(
@@ -342,7 +346,7 @@ impl<
         modifications: UserPatch,
         remove: Option<UserField>,
     ) {
-        self.handler
+        self.inner
             .on_user_update(ctx, id, modifications, remove)
             .await
     }
@@ -354,7 +358,7 @@ impl<
         other_id: UserId,
         status: RelationshipStatus,
     ) {
-        self.handler
+        self.inner
             .on_user_relationship_update(ctx, self_id, other_id, status)
             .await
     }
@@ -364,7 +368,7 @@ impl<
 /// same as the list of servers the bot is in, by listening
 /// to the `ServerMember{Join,Leave}` events with the
 /// user id of the bot, which should be passed in [`Self::new`]
-#[cfg(feature = "events")]
+#[cfg(all(feature = "events", feature = "cache"))]
 #[derive(Clone)]
 pub struct CacheServersMaintainer<Inner>
 where
@@ -375,7 +379,7 @@ where
     inner: Inner,
 }
 
-#[cfg(feature = "events")]
+#[cfg(all(feature = "events", feature = "cache"))]
 impl<Inner> CacheServersMaintainer<Inner>
 where
     Inner: RawEventHandler + Clone,
@@ -389,7 +393,7 @@ where
     }
 }
 
-#[cfg(feature = "events")]
+#[cfg(all(feature = "events", feature = "cache"))]
 #[async_trait::async_trait]
 impl<Inner> RawEventHandler for CacheServersMaintainer<Inner>
 where
@@ -423,12 +427,12 @@ where
 /// distinguishes between the events and calls the relevant handler.
 #[cfg(feature = "events")]
 #[derive(Clone)]
-pub struct EventHandlerWrap<T: EventHandler + Clone + 'static>(T);
+pub struct EventHandlerWrap<Inner: EventHandler + Clone + 'static>(Inner);
 
 #[cfg(feature = "events")]
-impl<T: EventHandler + Clone + 'static> EventHandlerWrap<T> {
-    pub fn new(handler: T) -> Self {
-        Self(handler)
+impl<Inner: EventHandler + Clone + 'static> EventHandlerWrap<Inner> {
+    pub fn new(inner: Inner) -> Self {
+        Self(inner)
     }
 }
 

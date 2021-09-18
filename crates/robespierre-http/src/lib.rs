@@ -152,7 +152,7 @@ impl Http {
 
     /// Creates a new client from the authentication and url.
     ///
-    /// Use this if using a self hosted instance of revolt, otherwise use [Self::new].
+    /// Use this if using a self hosted instance of revolt, otherwise use [`Self::new`].
     pub async fn new_with_url<'auth>(
         auth: impl Into<HttpAuthentication<'auth>>,
         api_root: &str,
