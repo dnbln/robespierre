@@ -19,7 +19,38 @@ jobs:
             toolchain: stable
             override: true
 
-      - name: Publish
-        uses: katyo/publish-crates@v1
+      - name: Publish models
+        uses: actions-rs/cargo@v1
         with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          command: publish
+          args: --verbose --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --manifest-path ./crates/robespierre-models
+
+      - name: Publish fw-macros
+        uses: actions-rs/cargo@v1
+        with:
+          command: publish
+          args: --verbose --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --manifest-path ./crates/robespierre-fw-macros
+
+      - name: Publish events
+        uses: actions-rs/cargo@v1
+        with:
+          command: publish
+          args: --verbose --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --manifest-path ./crates/robespierre-events
+
+      - name: Publish http
+        uses: actions-rs/cargo@v1
+        with:
+          command: publish
+          args: --verbose --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --manifest-path ./crates/robespierre-http
+
+      - name: Publish cache
+        uses: actions-rs/cargo@v1
+        with:
+          command: publish
+          args: --verbose --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --manifest-path crates/robespierre-cache
+
+      - name: Publish main crate
+        uses: actions-rs/cargo@v1
+        with:
+          command: publish
+          args: --verbose --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --manifest-path crates/robespierre
