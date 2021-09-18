@@ -23,34 +23,34 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: publish
-          args: --verbose --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --manifest-path ./crates/robespierre-models
+          args: --verbose --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --manifest-path ./crates/robespierre-models/Cargo.toml
 
       - name: Publish fw-macros
         uses: actions-rs/cargo@v1
         with:
           command: publish
-          args: --verbose --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --manifest-path ./crates/robespierre-fw-macros
+          args: --verbose --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --manifest-path ./crates/robespierre-fw-macros/Cargo.toml
 
       - name: Publish events
         uses: actions-rs/cargo@v1
         with:
           command: publish
-          args: --verbose --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --manifest-path ./crates/robespierre-events
+          args: --verbose --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --manifest-path ./crates/robespierre-events/Cargo.toml
 
       - name: Publish http
         uses: actions-rs/cargo@v1
         with:
           command: publish
-          args: --verbose --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --manifest-path ./crates/robespierre-http
+          args: --verbose --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --manifest-path ./crates/robespierre-http/Cargo.toml
 
       - name: Publish cache
         uses: actions-rs/cargo@v1
         with:
           command: publish
-          args: --verbose --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --manifest-path crates/robespierre-cache
+          args: --verbose --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --manifest-path crates/robespierre-cache/Cargo.toml
 
       - name: Publish main crate
         uses: actions-rs/cargo@v1
         with:
           command: publish
-          args: --verbose --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --manifest-path crates/robespierre
+          args: --verbose --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --manifest-path crates/robespierre/Cargo.toml
