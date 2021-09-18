@@ -31,6 +31,11 @@ jobs:
           command: publish
           args: --verbose --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --manifest-path ./crates/robespierre-fw-macros/Cargo.toml
 
+      - name: Update 1
+        uses: actions-rs/cargo@v1
+        with:
+          command: update
+
       - name: Publish events
         uses: actions-rs/cargo@v1
         with:
@@ -48,6 +53,11 @@ jobs:
         with:
           command: publish
           args: --verbose --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --manifest-path crates/robespierre-cache/Cargo.toml
+
+      - name: Update 2
+        uses: actions-rs/cargo@v1
+        with:
+          command: update
 
       - name: Publish main crate
         uses: actions-rs/cargo@v1
