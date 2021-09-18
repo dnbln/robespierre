@@ -14,6 +14,7 @@ use std::sync::Arc;
 
 #[cfg(feature = "framework")]
 use framework::Framework;
+use model::ServerIdExt;
 #[cfg(feature = "cache")]
 use robespierre_cache::{Cache, CacheConfig, CommitToCache, HasCache};
 #[cfg(feature = "events")]
@@ -149,7 +150,7 @@ pub trait EventHandler: Send + Sync {
 }
 
 /// Wraps an event handler, updating the cache and then forwarding the events
-/// to the wrapped [`EventHandler`]
+/// to the inner [`EventHandler`]
 #[cfg(all(feature = "events", feature = "cache"))]
 #[derive(Clone)]
 pub struct CacheWrap<Ctx: HasCache + Clone + 'static, T: RawEventHandler<Context = Ctx>>(T);
@@ -161,8 +162,8 @@ where
     T: RawEventHandler<Context = Ctx>,
 {
     /// Creates a new [`CacheWrap`]
-    pub fn new(wrapped: T) -> Self {
-        Self(wrapped)
+    pub fn new(inner: T) -> Self {
+        Self(inner)
     }
 }
 
@@ -356,6 +357,65 @@ impl<
         self.handler
             .on_user_relationship_update(ctx, self_id, other_id, status)
             .await
+    }
+}
+
+/// "Maintains" the list of servers in the cache, keeping it the
+/// same as the list of servers the bot is in, by listening
+/// to the `ServerMember{Join,Leave}` events with the
+/// user id of the bot, which should be passed in [`Self::new`]
+#[cfg(feature = "events")]
+#[derive(Clone)]
+pub struct CacheServersMaintainer<Inner>
+where
+    Inner: RawEventHandler + Clone,
+    Inner::Context: CacheHttp,
+{
+    user_id: UserId,
+    inner: Inner,
+}
+
+#[cfg(feature = "events")]
+impl<Inner> CacheServersMaintainer<Inner>
+where
+    Inner: RawEventHandler + Clone,
+    Inner::Context: CacheHttp,
+{
+    /// Creates a new [`CacheServersMaintainer`].
+    ///
+    /// `user_id` should be the user id of the bot.
+    pub fn new(user_id: UserId, inner: Inner) -> Self {
+        Self { user_id, inner }
+    }
+}
+
+#[cfg(feature = "events")]
+#[async_trait::async_trait]
+impl<Inner> RawEventHandler for CacheServersMaintainer<Inner>
+where
+    Inner: RawEventHandler + Clone,
+    Inner::Context: CacheHttp,
+{
+    type Context = Inner::Context;
+
+    async fn handle(self, ctx: Self::Context, event: ServerToClientEvent) {
+        if let Some(cache) = ctx.cache() {
+            match &event {
+                ServerToClientEvent::ServerMemberJoin { id, user } => {
+                    if *user == self.user_id {
+                        let _ = id.server(&ctx).await; // will fetch server and store to cache
+                    }
+                }
+                ServerToClientEvent::ServerMemberLeave { id, user } => {
+                    if *user == self.user_id {
+                        cache.delete_server(*id).await;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        self.inner.handle(ctx, event).await
     }
 }
 

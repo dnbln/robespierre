@@ -22,13 +22,15 @@ use robespierre::framework::standard::{
 use robespierre::model::mention::Mentionable;
 use robespierre::model::ChannelIdExt;
 use robespierre::{async_trait, model::MessageExt, Context, EventHandler, EventHandlerWrap};
-use robespierre::{Authentication, CacheHttp, CacheWrap, FrameworkWrap, UserData};
+use robespierre::{
+    Authentication, CacheHttp, CacheServersMaintainer, CacheWrap, FrameworkWrap, UserData,
+};
 use robespierre_cache::CacheConfig;
 use robespierre_events::Connection;
 use robespierre_http::Http;
 use robespierre_models::autumn::AttachmentTag;
 use robespierre_models::channels::{Channel, Message, MessageContent, ReplyData};
-use robespierre_models::id::{ChannelId, ServerId, UserId};
+use robespierre_models::id::UserId;
 use robespierre_models::servers::ServerPermissions;
 use robespierre_models::users::User;
 
@@ -82,12 +84,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .normal_message(normal_message as NormalMessageHandlerCodeFn)
         .after(after_handler as AfterHandlerCodeFn);
 
-    connection
-        .run(
-            ctx,
-            CacheWrap::new(EventHandlerWrap::new(FrameworkWrap::new(fw, Handler))),
-        )
-        .await?;
+    let handler = FrameworkWrap::new(fw, Handler);
+
+    let handler = EventHandlerWrap::new(handler);
+
+    let user_id = "01FE64T5JCKP4SMTCXBBWZGA41".parse::<UserId>().unwrap();
+    let handler = CacheServersMaintainer::new(user_id, handler);
+
+    let handler = CacheWrap::new(handler);
+
+    connection.run(ctx, handler).await?;
 
     Ok(())
 }
@@ -327,19 +333,4 @@ fn after_handler<'a>(
 struct Handler;
 
 #[async_trait]
-impl EventHandler for Handler {
-    async fn on_server_member_join(&self, ctx: Context, server: ServerId, user: UserId) {
-        if server != "01FEFZGF62HTX6MVYBTZ9F1K1S" {
-            return;
-        }
-
-        let channel = "01FEFZXHDQMD5ESK0XXW93JM5R".parse::<ChannelId>().unwrap();
-
-        channel
-            .send_message(&ctx, |msg| {
-                msg.content(format!("Welcome {}!", user.mention()))
-            })
-            .await
-            .unwrap();
-    }
-}
+impl EventHandler for Handler {}
