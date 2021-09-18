@@ -193,6 +193,10 @@ impl Http {
         Ok(self.fetch_account().await?.id)
     }
 
+    pub fn get_revolt_configuration(&self) -> &RevoltConfiguration {
+        &self.revolt_config
+    }
+
     /// Uploads a file to autumn, returning the [`AttachmentId`]
     pub async fn upload_autumn(
         &self,
