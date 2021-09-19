@@ -53,6 +53,7 @@ impl<T: HasHttp> CacheHttp for T {
     }
 }
 
+#[derive(Clone)]
 pub enum Authentication {
     Bot { token: String },
     User { session_token: String },
