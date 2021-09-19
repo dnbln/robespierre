@@ -7,6 +7,18 @@ use super::impl_prelude::*;
 
 impl Http {
     /// Gets an user from the api
+    pub async fn fetch_self(&self) -> Result<User> {
+        Ok(self
+            .client
+            .get(ep!(self, "/users/@me"))
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    /// Gets an user from the api
     pub async fn fetch_user(&self, user_id: UserId) -> Result<User> {
         Ok(self
             .client
