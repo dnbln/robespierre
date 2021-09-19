@@ -692,3 +692,51 @@ pub enum ServerChannelType {
     Text,
     Voice,
 }
+
+impl ServerChannel {
+    pub fn name(&self) -> &String {
+        &self.name
+    }
+
+    pub fn description(&self) -> Option<&String> {
+        self.description.as_ref()
+    }
+}
+
+impl TextChannel {
+    pub fn name(&self) -> &String {
+        self.server_channel.name()
+    }
+
+    pub fn description(&self) -> Option<&String> {
+        self.server_channel.description()
+    }
+}
+
+impl VoiceChannel {
+    pub fn name(&self) -> &String {
+        self.server_channel.name()
+    }
+
+    pub fn description(&self) -> Option<&String> {
+        self.server_channel.description()
+    }
+}
+
+impl Channel {
+    pub fn name(&self) -> Option<&String> {
+        match self {
+            Self::TextChannel(c) => Some(c.name()),
+            Self::VoiceChannel(c) => Some(c.name()),
+            _ => None,
+        }
+    }
+
+    pub fn description(&self) -> Option<&String> {
+        match self {
+            Self::TextChannel(c) => c.description(),
+            Self::VoiceChannel(c) => c.description(),
+            _ => None,
+        }
+    }
+}
