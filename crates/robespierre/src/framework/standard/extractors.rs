@@ -1,12 +1,11 @@
 use std::{borrow::Cow, future::Future, pin::Pin, sync::Arc};
 
+use robespierre_client_core::model::{MessageExt, ServerIdExt};
 use robespierre_models::{
     channels::{ChannelPermissions, Message},
     servers::{Member, ServerPermissions},
     users::User,
 };
-
-use crate::model::{MessageExt, ServerIdExt};
 
 use super::{CommandError, CommandResult, FwContext};
 

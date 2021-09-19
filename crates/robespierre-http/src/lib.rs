@@ -1,4 +1,4 @@
-use std::result::Result as StdResult;
+use std::{ops::Deref, result::Result as StdResult};
 
 use reqwest::{
     header::{HeaderMap, HeaderValue},
@@ -222,5 +222,21 @@ impl Http {
             .json::<AutumnUploadResponse>()
             .await?;
         Ok(resp.id)
+    }
+}
+
+pub trait HasHttp: Send + Sync {
+    fn get_http(&self) -> &Http;
+}
+
+impl HasHttp for Http {
+    fn get_http(&self) -> &Http {
+        self
+    }
+}
+
+impl<T: Deref<Target=Http> + Send + Sync> HasHttp for T {
+    fn get_http(&self) -> &Http {
+        &**self
     }
 }

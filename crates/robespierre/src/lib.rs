@@ -10,18 +10,20 @@ pub extern crate robespierre_cache;
 #[cfg(feature = "events")]
 pub extern crate robespierre_events;
 
+pub extern crate robespierre_client_core;
+
 use std::sync::Arc;
 
 #[cfg(feature = "framework")]
 use framework::Framework;
-use model::ServerIdExt;
+use robespierre_client_core::model::ServerIdExt;
 #[cfg(feature = "cache")]
 use robespierre_cache::{Cache, CacheConfig, CommitToCache, HasCache};
 #[cfg(feature = "events")]
 use robespierre_events::{
-    typing::TypingSession, ConnectionMessage, ConnectionMessanger, EventsError, RawEventHandler,
+    typing::TypingSession, ConnectionMessage, ConnectionMessanger, RawEventHandler,
 };
-use robespierre_http::{Http, HttpAuthentication, HttpError};
+use robespierre_http::Http;
 use robespierre_models::{
     channels::{Channel, ChannelField, Message, PartialChannel, PartialMessage},
     events::{ReadyEvent, ServerToClientEvent},
@@ -36,18 +38,12 @@ use typemap::ShareMap;
 
 #[cfg(feature = "framework")]
 pub mod framework;
-pub mod model;
 
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("http error")]
-    Http(#[from] HttpError),
-    #[cfg(feature = "events")]
-    #[error("events error")]
-    Events(#[from] EventsError),
-}
+pub use robespierre_client_core::model;
+pub mod model_ext;
 
-pub type Result<T = ()> = std::result::Result<T, Error>;
+pub use robespierre_client_core::{Authentication, CacheHttp, Error, Result};
+pub use robespierre_http::HasHttp;
 
 /// A high-level event handler. Defines handlers for all the different types of events.
 #[cfg(feature = "events")]
@@ -521,52 +517,6 @@ where
     }
 }
 
-pub enum Authentication {
-    Bot { token: String },
-    User { session_token: String },
-}
-
-impl Authentication {
-    pub fn bot(token: impl Into<String>) -> Self {
-        Self::Bot {
-            token: token.into(),
-        }
-    }
-
-    pub fn user(session_token: impl Into<String>) -> Self {
-        Self::User {
-            session_token: session_token.into(),
-        }
-    }
-}
-
-#[cfg(feature = "events")]
-impl<'a> From<&'a Authentication> for robespierre_events::Authentication<'a> {
-    fn from(auth: &'a Authentication) -> Self {
-        match auth {
-            Authentication::Bot { token } => Self::Bot {
-                token: token.as_str(),
-            },
-            Authentication::User { session_token } => Self::User {
-                session_token: session_token.as_str(),
-            },
-        }
-    }
-}
-
-impl<'a> From<&'a Authentication> for HttpAuthentication<'a> {
-    fn from(auth: &'a Authentication) -> Self {
-        match auth {
-            Authentication::Bot { token } => Self::BotToken {
-                token: token.as_str(),
-            },
-            Authentication::User { session_token } => Self::UserSession {
-                session_token: session_token.as_str(),
-            },
-        }
-    }
-}
-
 #[derive(Clone)]
 pub struct Context {
     pub http: Arc<Http>,
@@ -649,48 +599,9 @@ impl HasCache for Context {
     }
 }
 
-pub trait HasHttp: Send + Sync {
-    fn get_http(&self) -> &Http;
-}
-
 impl HasHttp for Context {
     fn get_http(&self) -> &Http {
         &*self.http
-    }
-}
-
-impl HasHttp for Http {
-    fn get_http(&self) -> &Http {
-        self
-    }
-}
-
-#[cfg(feature = "cache")]
-pub trait CacheHttp: HasCache {
-    fn http(&self) -> &Http;
-    fn cache(&self) -> Option<&Cache>;
-}
-
-#[cfg(feature = "cache")]
-impl<T: HasCache + HasHttp> CacheHttp for T {
-    fn http(&self) -> &Http {
-        self.get_http()
-    }
-
-    fn cache(&self) -> Option<&Cache> {
-        self.get_cache()
-    }
-}
-
-#[cfg(not(feature = "cache"))]
-pub trait CacheHttp {
-    fn http(&self) -> &Http;
-}
-
-#[cfg(not(feature = "cache"))]
-impl<T: HasHttp> CacheHttp for T {
-    fn http(&self) -> &Http {
-        self.get_http()
     }
 }
 

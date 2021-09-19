@@ -7,10 +7,9 @@
 use std::sync::Arc;
 
 use robespierre_cache::{Cache, CacheConfig, CommitToCache, HasCache};
-use robespierre_events::{
-    Authentication, Connection, ConnectionMessage, ConnectionMessanger, RawEventHandler,
-};
-use robespierre_http::{Http, HttpAuthentication};
+use robespierre_client_core::{Authentication, model::ChannelIdExt};
+use robespierre_events::{Connection, ConnectionMessage, ConnectionMessanger, RawEventHandler};
+use robespierre_http::{HasHttp, Http};
 use robespierre_models::{
     channels::{MessageContent, SystemMessage},
     events::ServerToClientEvent,
@@ -24,14 +23,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let token = std::env::var("TOKEN")
         .expect("Cannot get token; set environment variable TOKEN=... and run again");
 
-    let http = Http::new(HttpAuthentication::UserSession {
-        session_token: &token,
-    })
-    .await?;
-    let connection = Connection::connect(Authentication::User {
-        session_token: &token,
-    })
-    .await?;
+    let auth = Authentication::user(token);
+
+    let http = Http::new(&auth).await?;
+    let connection = Connection::connect(&auth).await?;
 
     let acc = http.fetch_account().await?;
 
@@ -55,6 +50,12 @@ struct Context(Arc<Http>, Arc<Cache>, Option<ConnectionMessanger>, UserId);
 impl HasCache for Context {
     fn get_cache(&self) -> Option<&Cache> {
         Some(&self.1)
+    }
+}
+
+impl HasHttp for Context {
+    fn get_http(&self) -> &Http {
+        &self.0
     }
 }
 
@@ -98,19 +99,10 @@ impl RawEventHandler for Handler {
 
                     tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
-                    if let Err(err) = ctx
-                        .0
-                        .send_message(
-                            message.channel,
-                            "Welcome",
-                            rusty_ulid::generate_ulid_string(),
-                            vec![],
-                            vec![],
-                        )
-                        .await
-                    {
-                        tracing::error!("Error {}; full: {:?}", err, err);
-                    }
+                    let _ = message
+                        .channel
+                        .send_message(&ctx, |m| m.content("Welcome"))
+                        .await;
 
                     ctx.2.as_ref().unwrap().send(ConnectionMessage::StopTyping {
                         channel: message.channel,

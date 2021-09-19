@@ -1,5 +1,3 @@
-use crate::model::MessageExt;
-
 use super::*;
 
 async fn command(fw_ctx: &FwContext, message: &Message, args: &str) -> CommandResult {

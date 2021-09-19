@@ -65,7 +65,7 @@ impl fmt::Display for Mention {
 
 /// Helper trait to create a [`Mention`] from any mentionable object.
 /// ```rust
-/// use robespierre::model::mention::{Mention, Mentionable};
+/// use robespierre_client_core::model::mention::{Mention, Mentionable};
 /// use robespierre_models::id::{UserId, ChannelId};
 /// # let s = "A".repeat(26);
 /// let user_id: UserId = s.parse().unwrap();

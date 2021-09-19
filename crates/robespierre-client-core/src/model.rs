@@ -1,7 +1,6 @@
 #[cfg(feature = "cache")]
 use robespierre_cache::CommitToCache;
-#[cfg(feature = "events")]
-use robespierre_events::typing::TypingSession;
+use robespierre_http::HasHttp;
 use robespierre_models::{
     autumn::AttachmentId,
     channels::{Channel, Message, ReplyData},
@@ -10,15 +9,12 @@ use robespierre_models::{
     users::User,
 };
 
-use crate::{CacheHttp, Context, HasHttp, Result};
+use crate::{CacheHttp, Result};
 
 pub mod mention;
 
 pub trait IntoString: Into<String> + Send + Sync {}
 impl<T> IntoString for T where T: Into<String> + Send + Sync {}
-
-pub trait AsRefContext: AsRef<Context> + Send + Sync {}
-impl<T> AsRefContext for T where T: AsRef<Context> + Send + Sync {}
 
 // commit_to_cache implementation when there is no cache
 #[cfg(not(feature = "cache"))]
@@ -166,8 +162,8 @@ pub trait ChannelIdExt {
     where
         F: for<'a> FnOnce(&'a mut CreateMessage) -> &'a CreateMessage + Send;
 
-    #[cfg(feature = "events")]
-    fn start_typing(&self, ctx: &impl AsRefContext) -> TypingSession;
+    #[deprecated(note = "Use robespierre::model_ext::ChannelIdExt2::start_typing instead")]
+    fn start_typing(&self) {}
 }
 
 #[async_trait::async_trait]
@@ -213,11 +209,6 @@ impl ChannelIdExt for ChannelId {
                 m.replies,
             )
             .await?)
-    }
-
-    #[cfg(feature = "events")]
-    fn start_typing(&self, ctx: &impl AsRefContext) -> TypingSession {
-        ctx.as_ref().start_typing(*self)
     }
 }
 

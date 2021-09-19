@@ -7,8 +7,9 @@
 use std::sync::Arc;
 
 use robespierre_cache::{Cache, CacheConfig, CommitToCache};
-use robespierre_events::{Authentication, Connection};
-use robespierre_http::{Http, HttpAuthentication};
+use robespierre_client_core::{model::ChannelIdExt, Authentication};
+use robespierre_events::Connection;
+use robespierre_http::Http;
 use robespierre_models::{
     channels::{Message, MessageContent},
     events::ServerToClientEvent,
@@ -21,17 +22,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let token = std::env::var("TOKEN")
         .expect("Cannot get token; set environment variable TOKEN=... and run again");
 
-    let http = Http::new(HttpAuthentication::UserSession {
-        session_token: &token,
-    })
-    .await?;
+    let auth = Authentication::user(token);
+
+    let http = Http::new(&auth).await?;
 
     let http = Arc::new(http);
 
-    let mut connection = Connection::connect(Authentication::User {
-        session_token: &token,
-    })
-    .await?;
+    let mut connection = Connection::connect(&auth).await?;
 
     let cache = Cache::new(CacheConfig::default());
 
@@ -73,14 +70,9 @@ async fn handle(event: ServerToClientEvent, http: Arc<Http>) {
     } = &event
     {
         if s == "hello" {
-            let _ = http
-                .send_message(
-                    message.channel,
-                    "hi",
-                    rusty_ulid::generate_ulid_string(),
-                    vec![],
-                    vec![],
-                )
+            let _ = message
+                .channel
+                .send_message(&http, |m| m.content("hi"))
                 .await;
         }
     }

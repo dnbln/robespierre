@@ -9,6 +9,8 @@ use std::{
 
 #[cfg(feature = "cache")]
 use robespierre_cache::{Cache, HasCache};
+use robespierre_client_core::{model::{MessageExt, ServerIdExt}};
+use robespierre_http::HasHttp;
 use robespierre_models::{
     channels::Channel,
     channels::{ChannelPermissions, Message, MessageContent},
@@ -16,10 +18,7 @@ use robespierre_models::{
     servers::ServerPermissions,
 };
 
-use crate::{
-    model::{MessageExt, ServerIdExt},
-    Context, HasHttp, UserData,
-};
+use crate::{Context, UserData};
 
 use super::Framework;
 

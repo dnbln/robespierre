@@ -19,9 +19,10 @@ use robespierre::framework::standard::{
     macros::command, AfterHandlerCodeFn, Command, CommandCodeFn, CommandResult, FwContext,
     NormalMessageHandlerCodeFn, StandardFramework,
 };
+use robespierre::model::{ChannelIdExt, MessageExt};
+use robespierre::model_ext::ChannelIdExt2;
 use robespierre::model::mention::Mentionable;
-use robespierre::model::ChannelIdExt;
-use robespierre::{async_trait, model::MessageExt, Context, EventHandler, EventHandlerWrap};
+use robespierre::{async_trait, Context, EventHandler, EventHandlerWrap};
 use robespierre::{
     Authentication, CacheHttp, CacheServersMaintainer, CacheWrap, FrameworkWrap, UserData,
 };
@@ -272,7 +273,7 @@ async fn normal_message_impl(ctx: &FwContext, message: &Message) {
     let channel = message.channel(ctx).await.unwrap();
     let server = message.server(ctx).await.unwrap();
 
-    let _session = message.channel.start_typing(ctx);
+    let _session = ChannelIdExt2::start_typing(&message.channel, ctx);
     tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
     let att_id = ctx

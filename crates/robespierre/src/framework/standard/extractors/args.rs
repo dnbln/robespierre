@@ -4,6 +4,7 @@ use futures::{
     future::{ready, Ready},
     Future,
 };
+use robespierre_client_core::model::{ChannelIdExt, UserIdExt};
 use robespierre_models::{
     channels::Channel,
     id::{ChannelId, IdStringDeserializeError, UserId},
@@ -12,7 +13,6 @@ use robespierre_models::{
 
 use crate::{
     framework::standard::{CommandError, CommandResult, FwContext},
-    model::{ChannelIdExt, UserIdExt},
 };
 
 use super::{ExtractorConfigBuilder, FromMessage, Msg};
