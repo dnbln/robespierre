@@ -11,7 +11,10 @@ use robespierre_models::{
 
 use crate::{CacheHttp, Result};
 
+use self::user_opt_member::UserOptMember;
+
 pub mod mention;
+pub mod user_opt_member;
 
 pub trait IntoString: Into<String> + Send + Sync {}
 impl<T> IntoString for T where T: Into<String> + Send + Sync {}
@@ -43,9 +46,11 @@ pub trait MessageExt {
         content: impl IntoString + 'async_trait,
     ) -> Result<Message>;
     async fn author(&self, ctx: &impl CacheHttp) -> Result<User>;
+    async fn member(&self, ctx: &impl CacheHttp) -> Result<Option<Member>>;
     async fn channel(&self, ctx: &impl CacheHttp) -> Result<Channel>;
     async fn server_id(&self, ctx: &impl CacheHttp) -> Result<Option<ServerId>>;
     async fn server(&self, ctx: &impl CacheHttp) -> Result<Option<Server>>;
+    async fn author_user_opt_member(&self, ctx: &impl CacheHttp) -> Result<UserOptMember>;
 }
 
 #[derive(Debug, Clone, Default)]
@@ -120,6 +125,15 @@ impl MessageExt for Message {
         self.author.user(ctx).await
     }
 
+    async fn member(&self, ctx: &impl CacheHttp) -> Result<Option<Member>> {
+        let server = self.server_id(ctx).await?;
+
+        match server {
+            Some(id) => Ok(Some(id.member(ctx, self.author).await?)),
+            None => Ok(None),
+        }
+    }
+
     async fn channel(&self, ctx: &impl CacheHttp) -> Result<Channel> {
         self.channel.channel(ctx).await
     }
@@ -132,6 +146,14 @@ impl MessageExt for Message {
         let ch = self.channel(ctx).await?;
 
         Ok(ch.server(ctx).await?)
+    }
+
+    async fn author_user_opt_member(&self, ctx: &impl CacheHttp) -> Result<UserOptMember> {
+        let user = self.author(ctx).await?;
+
+        let member = self.member(ctx).await.ok().flatten();
+
+        Ok(UserOptMember { user, member })
     }
 }
 
