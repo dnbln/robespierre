@@ -1,6 +1,7 @@
 # User data
 
 Let's start with the code from [the previous chapter](framework.md):
+
 ```rust ,no_run
 // src/main.rs
 use robespierre::CacheWrap;

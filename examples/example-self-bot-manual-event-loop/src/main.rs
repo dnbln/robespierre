@@ -10,10 +10,7 @@ use robespierre_cache::{Cache, CacheConfig, CommitToCache};
 use robespierre_client_core::{model::ChannelIdExt, Authentication};
 use robespierre_events::Connection;
 use robespierre_http::Http;
-use robespierre_models::{
-    channels::{Message, MessageContent},
-    events::ServerToClientEvent,
-};
+use robespierre_models::{channels::MessageContent, events::ServerToClientEvent};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -59,21 +56,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn handle(event: ServerToClientEvent, http: Arc<Http>) {
-    if let ServerToClientEvent::Message {
-        message:
-            message
-            @
-            Message {
-                content: MessageContent::Content(s),
-                ..
-            },
-    } = &event
-    {
-        if s == "hello" {
-            let _ = message
-                .channel
-                .send_message(&http, |m| m.content("hi"))
-                .await;
+    if let ServerToClientEvent::Message { message } = &event {
+        if let MessageContent::Content(s) = &message.content {
+            if s == "hello" {
+                let _ = message
+                    .channel
+                    .send_message(&http, |m| m.content("hi"))
+                    .await;
+            }
         }
     }
 }

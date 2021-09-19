@@ -1,4 +1,5 @@
 # Extractors
+
 Extractors here work like they do in `actix_web`.
 They implement the `FromMessage` trait, and get
 the data they need from the message + context.
@@ -32,6 +33,7 @@ async fn stat_user(ctx: &FwContext, message: &Message,
 ```
 
 Or a stat channel command:
+
 ```rust ,no_run
 # use robespierre::framework::standard::{FwContext, CommandResult, macros::command};
 # use robespierre::framework::standard::extractors::{Args, Author, RawArgs, Rest};
@@ -71,8 +73,7 @@ async fn repeat(ctx: &FwContext, message: &Message, Author(author): Author, RawA
 
 They get added to the framework in the exact same way.
 
-
-By default, the delimiter `Args` uses is ` `, but you can change it like:
+By default, the delimiter `Args` uses is ``, but you can change it like:
 
 ```rust ,no_run
 # use robespierre::framework::standard::{FwContext, CommandResult, macros::command};
@@ -155,13 +156,16 @@ but for `#[delimiters()]`, they have to all be of the same type.
 
 If you need values of multiple types, then you can use multiple `#[delimiters]` attributes.
 
-
 ## Special types
+
 There are 2 kinds of special argument types (omitting `.to_string()` calls for simplicity):
+
 ### `Option<T> where T: Arg`
+
 Means "try to parse the argument as T, and if failed, pass None as arg, and continue trying to parse as if there was no arg here".
 
 E.g. a type like:
+
 ```rust ,ignore
 # fn f(
 #[delimiter(",")]
@@ -174,9 +178,11 @@ If given `aaa, bbb`, it will result `Args(("aaa", None, "bbb"))`.
 While if given `aaa, <@AAAAAAAAAAAAAAAAAAAAAAAAAA>, bbb`, it will result `Args(("aaa", Some(...), "bbb"))`.
 
 ### `Rest<T> where T: Arg`
+
 It means "use all the remaining text" to parse `T`.
 
 E.g. a type like:
+
 ```rust ,ignore
 # fn f(
 #[delimiter(",")]

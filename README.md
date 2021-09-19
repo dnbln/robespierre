@@ -16,7 +16,7 @@ For guides on how to use, see [the book](https://dblanovschi.github.io/robespier
 
 See the [LICENSE-APACHE][license apache] and [LICENSE-MIT][license mit] files in this repository for more information.
 
-[version badge]: https://img.shields.io/crates/v/robespierre?label=robespierre&style=for-the-badge
+[version badge]: https://raw.githubusercontent.com/dblanovschi/robespierre/main/.assets/badges/version.svg
 [link]: https://crates.io/crates/robespierre
 
 [license badge]: https://raw.githubusercontent.com/dblanovschi/robespierre/main/.assets/badges/license.svg

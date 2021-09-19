@@ -1,6 +1,7 @@
 # Writing an example bot
 
 Create a new project:
+
 ```bash
 cargo new --bin mybot
 ```
@@ -9,14 +10,15 @@ Add `robespierre`, `robespierre-cache`, `robespierre-http`, `robespierre-events`
 
 ```toml
 [dependencies]
-robespierre = { version = "0.1.0", features = ["cache", "events", "framework", "framework-macros"] }
-robespierre-cache = "0.1.0"
-robespierre-http = "0.1.0"
-robespierre-events = "0.1.0"
-robespierre-models = "0.1.0"
+robespierre = { version = "0.3.0", features = ["cache", "events", "framework", "framework-macros"] }
+robespierre-cache = "0.3.0"
+robespierre-http = "0.3.0"
+robespierre-events = "0.3.0"
+robespierre-models = "0.3.0"
 ```
 
 We'll also need `tokio`, and if you want logging, `tracing`:
+
 ```toml
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
@@ -31,6 +33,7 @@ fn main() {
 ```
 
 Let's start with a stub main, running on tokio:
+
 ```rust ,no_run
 // src/main.rs
 #[tokio::main]
@@ -40,6 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 Optional: initialize a global `tracing` subscriber:
+
 ```rust ,no_run
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -50,6 +54,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 Now, get the bot token:
+
 ```rust ,no_run
 // src/main.rs
 #[tokio::main]
@@ -64,6 +69,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 Create an authentication:
+
 ```rust ,no_run
 // src/main.rs
 use robespierre::Authentication;
@@ -82,6 +88,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 Then a http client:
+
 ```rust ,no_run
 // src/main.rs
 # use robespierre::Authentication;
@@ -103,6 +110,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 And a websocket connection:
+
 ```rust ,no_run
 // src/main.rs
 # use robespierre::Authentication;
@@ -205,6 +213,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #     }
 # }
 ```
+
 *) More on this in [the user data chapter](user-data.md), for now just leave it as it is.
 
 Now let's "run" the connection, listening to events and handling them:
@@ -254,6 +263,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 First, we have to make a distinction between the 2 types of handlers availabe:
+
 - `T: EventHandler`
 - `T: RawEventHandler`
 
@@ -375,6 +385,7 @@ impl robespierre::EventHandler for Handler {
 ```
 
 Now, let's run it:
+
 ```bash
 TOKEN=... cargo run
 ```

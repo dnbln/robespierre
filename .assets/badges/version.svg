@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="151.25" height="28" role="img"
+    aria-label="Revolt server">
+    <title>Robespierre version</title>
+    <g shape-rendering="crispEdges">
+        <rect width="151.25" height="28" fill="#101823" />
+    </g>
+    <g fill="#fff" text-anchor="middle" font-family="Fira Code,Verdana,Geneva,DejaVu Sans,sans-serif"
+        text-rendering="geometricPrecision" font-size="100">
+        <!-- cat cargo.png | base64 | tr -d '\n' -->
+        <!-- <rect x="78" y="0" width="73.25" height="28" fill="#ff4654" /> -->
+        <rect x="0" y="0" width="78" height="28" fill="#ff4654" />
+        <text transform="scale(.1)" x="400.25" y="175" textLength="502.5" fill="#fff" font-weight="bold">VERSION</text>
+        <text transform="scale(.1)" x="1150.25" y="175" textLength="292.5" fill="#fff" font-weight="bold">0.3.1</text>
+    </g>
+</svg>

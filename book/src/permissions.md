@@ -41,9 +41,10 @@ async fn ban(
 ```
 
 If you need to check if an user has permissions in a given channel use `member_has_permissions_in_channel`,
-and pass the `ChannelPermissions` you want to check + a reference to the channel you want to check for permissions in. 
+and pass the `ChannelPermissions` you want to check + a reference to the channel you want to check for permissions in.
 
 ## Extractor version
+
 ```rust ,no_run
 # use robespierre::framework::standard::{FwContext, CommandResult, macros::command};
 # use robespierre::framework::standard::extractors::{Args, AuthorMember, RawArgs, Rest, RequiredPermissions};
@@ -71,6 +72,7 @@ async fn ban(
 If one of them is `T::bits(&T::empty())`, it can be rewritten with the `RequiredServerPermissions`
 and `RequiredChannelPermissions` utils.
 In our example:
+
 ```rust ,no_run
 # use robespierre::framework::standard::{FwContext, CommandResult, macros::command};
 # use robespierre::framework::standard::extractors::{Args, AuthorMember, RawArgs, Rest};
