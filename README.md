@@ -1,6 +1,6 @@
 # Robespierre
 
-[![version badge][]][link] ![license badge][] ![rust badge][] ![api version badge][]
+[![revolt server badge][]][revolt server link] ![license badge][] [![version badge][]][link] ![rust badge][] ![api version badge][]
 
 A [revolt.chat][revolt] API wrapper.
 
@@ -19,12 +19,14 @@ See the [LICENSE-APACHE][license apache] and [LICENSE-MIT][license mit] files in
 [version badge]: https://img.shields.io/crates/v/robespierre?label=robespierre&style=for-the-badge
 [link]: https://crates.io/crates/robespierre
 
-[license badge]: https://img.shields.io/crates/l/robespierre?style=for-the-badge
+[license badge]: https://raw.githubusercontent.com/dblanovschi/robespierre/main/.assets/badges/license.svg
 [license mit]: ./LICENSE-MIT
 [license apache]: ./LICENSE-APACHE
 
 [revolt]: https://revolt.chat
+[revolt server badge]: https://raw.githubusercontent.com/dblanovschi/robespierre/main/.assets/badges/revolt-server.svg
+[revolt server link]: https://app.revolt.chat/invite/hk1w6fhf
 
-[rust badge]: https://img.shields.io/badge/rust-1.53+-93450a.svg?style=for-the-badge&logo=rust
+[rust badge]: https://raw.githubusercontent.com/dblanovschi/robespierre/main/.assets/badges/msrv.svg
 
-[api version badge]: https://img.shields.io/badge/api-0.5.3--alpha.2-orange.svg?style=for-the-badge
+[api version badge]: https://raw.githubusercontent.com/dblanovschi/robespierre/main/.assets/badges/revolt-api.svg

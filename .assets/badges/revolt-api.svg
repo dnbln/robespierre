@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="210" height="28" role="img"
+    aria-label="Revolt server">
+    <title>Revolt server</title>
+    <g shape-rendering="crispEdges">
+        <rect width="210" height="28" fill="#101823" />
+    </g>
+    <g fill="#fff" text-anchor="middle" font-family="Fira Code,Verdana,Geneva,DejaVu Sans,sans-serif"
+        text-rendering="geometricPrecision" font-size="100">
+        <!-- cat revolt-inner.svg | base64 | tr -d '\n'  -->
+        <image x="9" y="7" width="14" height="14"
+            xlink:href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9Ii0wLjYwNjk5OTk5OTk5OTk5OTMgLTEwLjE3MyAzMy4xMjUgMzUuNTc2Ij48cGF0aCBkPSJNIDIzLjM5MyAxLjM4MiBjIDAgMi43ODcgLTEuNTIgNC40NiAtNC43NjQgNC40NiBIIDEzLjI1OCBWIC0yLjk3NyBIIDE4LjYzIEMgMjEuODczIC0yLjk3NyAyMy4zOTMgLTEuMjU0IDIzLjM5MyAxLjM4MiBaIG0gLTI0IC0xMS41NTUgbCA1LjIgNy4yMTMgViAyNS40IGggOC42NjYgViAxMS45NzMgaCAyLjA3OCBsIDcuNCAxMy40MyBoIDkuNzgxIGwgLTguMjEgLTE0LjA4OSBBIDEwLjM1NSAxMC4zNTUgMCAwIDAgMzIuMjEyIDEuMDI3IGMgMCAtNi4xODMgLTQuMzU4IC0xMS4yIC0xMy4wNzUgLTExLjIiIGZpbGw9IiNmZjQ2NTQiLz48L3N2Zz4=" />
+        <text transform="scale(.1)" x="1156.25" y="175" textLength="1572.5" fill="#fff" font-weight="bold">REVOLT
+            API: 0.5.3-alpha.2</text>
+    </g>
+</svg>
