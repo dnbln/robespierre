@@ -1,3 +1,12 @@
+pub extern crate robespierre_http;
+pub extern crate robespierre_models;
+
+#[cfg(feature = "cache")]
+pub extern crate robespierre_cache;
+
+#[cfg(feature = "events")]
+pub extern crate robespierre_events;
+
 use robespierre_cache::{Cache, HasCache};
 use robespierre_events::EventsError;
 use robespierre_http::{HasHttp, Http, HttpAuthentication, HttpError};
