@@ -238,7 +238,10 @@ impl Group {
             .iter()
             .find_map(|group| {
                 let group_name: &str = group.name.borrow();
-                if let Some(rest) = command.strip_prefix(group_name) {
+                if let Some(rest) = command
+                    .strip_prefix(group_name)
+                    .filter(|rest| rest.is_empty() || rest.starts_with(' '))
+                {
                     if rest.trim() == "" {
                         Some((group.default_invoke.as_ref()?, ""))
                     } else if rest.starts_with(char::is_whitespace) {
@@ -255,7 +258,11 @@ impl Group {
                     let command_name: &str = c.name.borrow();
                     let rest = std::iter::once(command_name)
                         .chain(c.aliases.iter().map(|it| -> &str { it }))
-                        .find_map(|name| command.strip_prefix(name));
+                        .find_map(|name| {
+                            command
+                                .strip_prefix(name)
+                                .filter(|rest| rest.is_empty() || rest.starts_with(' '))
+                        });
                     if let Some(rest) = rest {
                         if rest.trim() == "" {
                             Some((c, ""))

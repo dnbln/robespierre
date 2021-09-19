@@ -5,7 +5,7 @@ use crate::{autumn::Attachment, id::UserId, users::Username};
 // https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Bots.ts#L5-L34
 
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-#[serde(deny_unknown_fields)]
+#[cfg_attr(debug_assertions, serde(deny_unknown_fields))]
 pub struct Bot {
     /// Bot ID, matches bot's User ID
     #[serde(rename = "_id")]
@@ -29,7 +29,7 @@ pub struct Bot {
 // https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Bots.ts#L36-L56
 
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-#[serde(deny_unknown_fields)]
+#[cfg_attr(debug_assertions, serde(deny_unknown_fields))]
 pub struct PublicBot {
     /// Bot ID, matches bot's User ID
     #[serde(rename = "_id")]
@@ -51,7 +51,7 @@ pub struct PublicBot {
 Extra
 */
 #[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-#[serde(deny_unknown_fields)]
+#[cfg_attr(debug_assertions, serde(deny_unknown_fields))]
 pub enum BotField {
     InteractionsURL,
 }

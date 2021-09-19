@@ -446,6 +446,7 @@ id_impl! {@dt InviteId, IdString}
 ///
 /// Note: it is a pair of a [`ServerId`] and [`UserId`]
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[cfg_attr(debug_assertions, serde(deny_unknown_fields))]
 pub struct MemberId {
     pub server: ServerId,
     pub user: UserId,

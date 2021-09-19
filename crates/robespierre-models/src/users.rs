@@ -39,7 +39,7 @@ pub enum RelationshipStatus {
 // https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Users.ts#L29-L34
 
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-#[serde(deny_unknown_fields)]
+#[cfg_attr(debug_assertions, serde(deny_unknown_fields))]
 pub struct Relationship {
     pub status: RelationshipStatus,
     /// Other user's ID
@@ -51,7 +51,7 @@ pub struct Relationship {
 
 /// User presence
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-#[serde(deny_unknown_fields)]
+#[cfg_attr(debug_assertions, serde(deny_unknown_fields))]
 pub enum UserPresence {
     Online,
     Idle,
@@ -62,7 +62,7 @@ pub enum UserPresence {
 // https://github.com/revoltchat/api/blob/master/types/Users.ts#L46-L58
 
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-#[serde(deny_unknown_fields)]
+#[cfg_attr(debug_assertions, serde(deny_unknown_fields))]
 pub struct Status {
     /// Status text.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -92,7 +92,7 @@ bitflags! {
 
 /// Bot information
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-#[serde(deny_unknown_fields)]
+#[cfg_attr(debug_assertions, serde(deny_unknown_fields))]
 pub struct BotInformation {
     /// The User ID of the owner of this bot
     pub owner: UserId,
@@ -102,7 +102,7 @@ pub struct BotInformation {
 
 /// An user
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-#[serde(deny_unknown_fields)]
+#[cfg_attr(debug_assertions, serde(deny_unknown_fields))]
 pub struct User {
     /// The user id.
     #[serde(rename = "_id")]
@@ -164,7 +164,7 @@ bitflags! {
 
 /// Profile data about an user.
 #[derive(Serialize, Deserialize, Default, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-#[serde(deny_unknown_fields)]
+#[cfg_attr(debug_assertions, serde(deny_unknown_fields))]
 pub struct Profile {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
@@ -180,7 +180,7 @@ Extra
 /// used to update an [`User`] with the [`PartialUser::patch`]
 /// function.
 #[derive(Serialize, Deserialize, Default, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-#[serde(deny_unknown_fields)]
+#[cfg_attr(debug_assertions, serde(deny_unknown_fields))]
 pub struct UserPatch {
     #[serde(rename = "_id", default, skip_serializing_if = "Option::is_none")]
     pub id: Option<UserId>,

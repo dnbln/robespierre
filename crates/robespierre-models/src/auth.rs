@@ -20,7 +20,7 @@ Types
 
 // https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Auth.ts#L3-L13
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-#[serde(deny_unknown_fields)]
+#[cfg_attr(debug_assertions, serde(deny_unknown_fields))]
 pub struct Account {
     #[serde(rename = "_id")]
     pub id: UserId,
@@ -29,7 +29,7 @@ pub struct Account {
 
 // https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Auth.ts#L15-L40
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-#[serde(deny_unknown_fields)]
+#[cfg_attr(debug_assertions, serde(deny_unknown_fields))]
 pub struct Session {
     #[serde(rename = "_id", default, skip_serializing_if = "Option::is_none")]
     pub id: Option<SessionId>,
@@ -47,7 +47,7 @@ pub struct Session {
 
 // https://github.com/revoltchat/api/blob/097f40e37108cd3a1816b1c2cc69a137ae317069/types/Auth.ts#L42-L52
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-#[serde(deny_unknown_fields)]
+#[cfg_attr(debug_assertions, serde(deny_unknown_fields))]
 pub struct SessionInfo {
     #[serde(rename = "_id")]
     id: SessionId,

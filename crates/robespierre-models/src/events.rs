@@ -22,6 +22,7 @@ pub enum ClientToServerEvent {
 
 /// Event received after authentication.
 #[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
+#[cfg_attr(debug_assertions, serde(deny_unknown_fields))]
 pub struct ReadyEvent {
     pub users: Vec<User>,
     pub servers: Vec<Server>,
@@ -32,7 +33,7 @@ pub struct ReadyEvent {
 /// Any message that the server can send to the client.
 #[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(tag = "type")]
-#[serde(deny_unknown_fields)]
+#[cfg_attr(debug_assertions, serde(deny_unknown_fields))]
 pub enum ServerToClientEvent {
     Error {
         error: String,
