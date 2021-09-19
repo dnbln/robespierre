@@ -83,7 +83,7 @@ bitflags! {
         const TRANSLATOR = 2;
         const SUPPORTER = 4;
         const RESPONSIBLE_DISCLOSURE = 8;
-        const REVOLT_TEAM = 16;
+        const TRUST_SAFETY_STAFF = 16;
         const EARLY_ADOPTER = 256;
     }
 }
