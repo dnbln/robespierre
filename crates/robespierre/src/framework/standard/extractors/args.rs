@@ -11,9 +11,7 @@ use robespierre_models::{
     users::User,
 };
 
-use crate::{
-    framework::standard::{CommandError, CommandResult, FwContext},
-};
+use crate::framework::standard::{CommandError, CommandResult, FwContext};
 
 use super::{ExtractorConfigBuilder, FromMessage, Msg};
 

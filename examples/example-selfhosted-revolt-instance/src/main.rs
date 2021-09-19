@@ -5,11 +5,11 @@
 
 // src/main.rs
 
+use robespierre::model::MessageExt;
 use robespierre::Authentication;
 use robespierre::CacheWrap;
 use robespierre::Context;
 use robespierre::EventHandlerWrap;
-use robespierre::model::MessageExt;
 use robespierre_cache::CacheConfig;
 use robespierre_events::Connection;
 use robespierre_http::Http;

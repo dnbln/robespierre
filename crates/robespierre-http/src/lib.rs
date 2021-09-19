@@ -235,7 +235,7 @@ impl HasHttp for Http {
     }
 }
 
-impl<T: Deref<Target=Http> + Send + Sync> HasHttp for T {
+impl<T: Deref<Target = Http> + Send + Sync> HasHttp for T {
     fn get_http(&self) -> &Http {
         &**self
     }

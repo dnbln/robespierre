@@ -19,9 +19,9 @@ use robespierre::framework::standard::{
     macros::command, AfterHandlerCodeFn, Command, CommandCodeFn, CommandResult, FwContext,
     NormalMessageHandlerCodeFn, StandardFramework,
 };
+use robespierre::model::mention::Mentionable;
 use robespierre::model::{ChannelIdExt, MessageExt};
 use robespierre::model_ext::ChannelIdExt2;
-use robespierre::model::mention::Mentionable;
 use robespierre::{async_trait, Context, EventHandler, EventHandlerWrap};
 use robespierre::{
     Authentication, CacheHttp, CacheServersMaintainer, CacheWrap, FrameworkWrap, UserData,

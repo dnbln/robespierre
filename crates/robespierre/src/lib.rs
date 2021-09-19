@@ -16,9 +16,9 @@ use std::sync::Arc;
 
 #[cfg(feature = "framework")]
 use framework::Framework;
-use robespierre_client_core::model::ServerIdExt;
 #[cfg(feature = "cache")]
 use robespierre_cache::{Cache, CacheConfig, CommitToCache, HasCache};
+use robespierre_client_core::model::ServerIdExt;
 #[cfg(feature = "events")]
 use robespierre_events::{
     typing::TypingSession, ConnectionMessage, ConnectionMessanger, RawEventHandler,

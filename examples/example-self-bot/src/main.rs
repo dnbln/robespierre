@@ -7,7 +7,7 @@
 use std::sync::Arc;
 
 use robespierre_cache::{Cache, CacheConfig, CommitToCache, HasCache};
-use robespierre_client_core::{Authentication, model::ChannelIdExt};
+use robespierre_client_core::{model::ChannelIdExt, Authentication};
 use robespierre_events::{Connection, ConnectionMessage, ConnectionMessanger, RawEventHandler};
 use robespierre_http::{HasHttp, Http};
 use robespierre_models::{
