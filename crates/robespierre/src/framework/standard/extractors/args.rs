@@ -4,10 +4,13 @@ use futures::{
     future::{ready, Ready},
     Future,
 };
-use robespierre_client_core::model::{ChannelIdExt, UserIdExt};
+use robespierre_client_core::model::{
+    user_opt_member::UserOptMember, ChannelIdExt, ServerIdExt, UserIdExt,
+};
 use robespierre_models::{
     channels::Channel,
     id::{ChannelId, IdStringDeserializeError, UserId},
+    servers::Member,
     users::User,
 };
 
@@ -202,6 +205,8 @@ impl Arg for User {
     #[allow(clippy::type_complexity)]
     type Fut = Pin<Box<dyn Future<Output = Result<(Self, PushBack), Self::Err>> + Send>>;
 
+    const TRIM: bool = <UserId as Arg>::TRIM;
+
     fn parse_arg(ctx: &FwContext, msg: &Msg, s: &str) -> Self::Fut {
         let fut = UserId::parse_arg(ctx, msg, s);
         let ctx = ctx.clone();
@@ -226,6 +231,67 @@ impl Arg for Channel {
         let fut = ChannelId::parse_arg(ctx, msg, s);
         let ctx = ctx.clone();
         Box::pin(async move { Ok((fut.await?.0.channel(&ctx).await?, PushBack::No)) })
+    }
+}
+
+impl Arg for UserOptMember {
+    type Err = ParseUserError;
+    #[allow(clippy::type_complexity)]
+    type Fut = Pin<Box<dyn Future<Output = Result<(Self, PushBack), Self::Err>> + Send>>;
+
+    const TRIM: bool = <User as Arg>::TRIM;
+
+    fn parse_arg(ctx: &FwContext, msg: &Msg, s: &str) -> Self::Fut {
+        let user_fut = User::parse_arg(&ctx, msg, s);
+
+        let ctx = ctx.clone();
+        let ch = msg.message.channel;
+
+        Box::pin(async move {
+            let (user, _) = user_fut.await?;
+            let server = ch.server_id(&ctx).await?;
+
+            let member = match server {
+                Some(server) => Some(server.member(&ctx, user.id).await?),
+                None => None,
+            };
+
+            Ok::<_, Self::Err>((UserOptMember { user, member }, PushBack::No))
+        })
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ParseMemberError {
+    #[error("parse user id error: {0}")]
+    ParseId(#[from] ParseUserIdError),
+    #[error("not in server")]
+    NotInServer,
+    #[error("other: {0}")]
+    Other(#[from] crate::Error),
+}
+
+impl Arg for Member {
+    type Err = ParseMemberError;
+    #[allow(clippy::type_complexity)]
+    type Fut = Pin<Box<dyn Future<Output = Result<(Self, PushBack), Self::Err>> + Send>>;
+
+    const TRIM: bool = <UserId as Arg>::TRIM;
+
+    fn parse_arg(ctx: &FwContext, msg: &Msg, s: &str) -> Self::Fut {
+        let user_fut = UserId::parse_arg(ctx, msg, s);
+
+        let ctx = ctx.clone();
+        let ch = msg.message.channel;
+
+        Box::pin(async move {
+            let (user, _) = user_fut.await?;
+            let server = ch.server_id(&ctx).await?.ok_or(ParseMemberError::NotInServer)?;
+
+            let member = server.member(&ctx, user).await?;
+
+            Ok::<_, Self::Err>((member, PushBack::No))
+        })
     }
 }
 

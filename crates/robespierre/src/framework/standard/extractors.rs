@@ -1,11 +1,7 @@
 use std::{borrow::Cow, future::Future, pin::Pin, sync::Arc};
 
 use robespierre_client_core::model::{MessageExt, ServerIdExt};
-use robespierre_models::{
-    channels::{ChannelPermissions, Message},
-    servers::{Member, ServerPermissions},
-    users::User,
-};
+use robespierre_models::{channels::{ChannelPermissions, Message}, id::ServerId, servers::{Member, Server, ServerPermissions}, users::User};
 
 use super::{CommandError, CommandResult, FwContext};
 
@@ -86,6 +82,44 @@ impl FromMessage for AuthorMember {
             Ok::<_, CommandError>(AuthorMember(
                 server.member(&ctx, message.message.author).await?,
             ))
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ContainingServerId(pub ServerId);
+
+impl FromMessage for ContainingServerId {
+    type Config = ();
+
+    type Fut = Pin<Box<dyn Future<Output = CommandResult<Self>> + Send>>;
+
+    fn from_message(ctx: FwContext, message: Msg, _config: Self::Config) -> Self::Fut {
+        Box::pin(async move {
+            let ch = message.message.channel(&ctx).await?;
+            let server_id = ch.server_id().ok_or(NotInServer)?;
+
+            Ok::<_, CommandError>(Self(server_id))
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ContainingServer(pub Server);
+
+impl FromMessage for ContainingServer {
+    type Config = ();
+
+    type Fut = Pin<Box<dyn Future<Output = CommandResult<Self>> + Send>>;
+
+    fn from_message(ctx: FwContext, message: Msg, _config: Self::Config) -> Self::Fut {
+        Box::pin(async move {
+            let ch = message.message.channel(&ctx).await?;
+            let server_id = ch.server_id().ok_or(NotInServer)?;
+
+            let server = server_id.server(&ctx).await?;
+
+            Ok::<_, CommandError>(Self(server))
         })
     }
 }

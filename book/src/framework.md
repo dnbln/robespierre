@@ -1,4 +1,5 @@
 # Framework
+
 Sometimes, matching against a lot of commands
 in the message handler can be cumbersome, and
 we just want to call functions for each command.
@@ -105,6 +106,7 @@ impl robespierre::EventHandler for Handler {}
 ```
 
 The signature of an event handler is defined as the `robespierre::framework::standard::CommandCodeFn` type, and looks like this:
+
 ```rust ,ignore
 fn command<'a>(
     ctx: &'a FwContext, // similar to Context
@@ -114,6 +116,7 @@ fn command<'a>(
 ```
 
 To hide the nastier implementation details, the `robespierre::framework::standard::macros::command` macro helps a little, and turns this:
+
 ```rust ,ignore
 #[command]
 async fn command(
@@ -129,6 +132,7 @@ Into a function that can be given where `robespierre::framework::standard::Comma
 For parsing arguments, see the chapter on [extractors](extractors.md), but for now we'll just ignore them.
 
 First, let's start with a `ping` command:
+
 ```rust ,no_run
 // src/main.rs
 # use robespierre::CacheWrap;
@@ -293,6 +297,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 Then run:
+
 ```bash
 TOKEN=... cargo run
 ```

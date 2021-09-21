@@ -4,11 +4,15 @@
 
 A [revolt.chat][revolt] API wrapper.
 
-Currently, wip.
-
-For an example, see [examples/example-bot](examples/example-bot).
+For examples, see the [examples directory](examples).
 
 For guides on how to use, see [the book](https://dblanovschi.github.io/robespierre).
+
+## Projects using robespierre
+
+- `tui-revolt`: very basic, proof of concept tui client for revolt ([github](https://github.com/dblanovschi/tui-revolt))
+
+> Note: If you want your project mentioned here, open a PR!
 
 ## License
 

@@ -183,9 +183,6 @@ pub trait ChannelIdExt {
     async fn send_message<F>(&self, ctx: &impl HasHttp, message: F) -> Result<Message>
     where
         F: for<'a> FnOnce(&'a mut CreateMessage) -> &'a CreateMessage + Send;
-
-    #[deprecated(note = "Use robespierre::model_ext::ChannelIdExt2::start_typing instead")]
-    fn start_typing(&self) {}
 }
 
 #[async_trait::async_trait]
@@ -238,6 +235,9 @@ impl ChannelIdExt for ChannelId {
 pub trait ServerIdExt {
     async fn server(&self, ctx: &impl CacheHttp) -> Result<Server>;
     async fn member(&self, ctx: &impl CacheHttp, user: UserId) -> Result<Member>;
+    async fn ban(&self, ctx: &impl HasHttp, user: UserId) -> Result;
+    async fn ban_with_reason(&self, ctx: &impl HasHttp, user: UserId, reason: &str) -> Result;
+    async fn unban(&self, ctx: &impl HasHttp, user: UserId) -> Result;
 }
 
 #[async_trait::async_trait]
@@ -264,6 +264,33 @@ impl ServerIdExt for ServerId {
             server: *self,
         }
         .member(ctx)
+        .await
+    }
+
+    async fn ban(&self, ctx: &impl HasHttp, user: UserId) -> Result {
+        MemberId {
+            user,
+            server: *self,
+        }
+        .ban(ctx)
+        .await
+    }
+
+    async fn ban_with_reason(&self, ctx: &impl HasHttp, user: UserId, reason: &str) -> Result {
+        MemberId {
+            user,
+            server: *self,
+        }
+        .ban_with_reason(ctx, reason)
+        .await
+    }
+
+    async fn unban(&self, ctx: &impl HasHttp, user: UserId) -> Result {
+        MemberId {
+            user,
+            server: *self,
+        }
+        .unban(ctx)
         .await
     }
 }
@@ -295,6 +322,9 @@ impl UserIdExt for UserId {
 #[async_trait::async_trait]
 pub trait MemberIdExt {
     async fn member(&self, ctx: &impl CacheHttp) -> Result<Member>;
+    async fn ban(&self, ctx: &impl HasHttp) -> Result;
+    async fn ban_with_reason(&self, ctx: &impl HasHttp, reason: &str) -> Result;
+    async fn unban(&self, ctx: &impl HasHttp) -> Result;
 }
 
 #[async_trait::async_trait]
@@ -313,5 +343,27 @@ impl MemberIdExt for MemberId {
             .await?
             .commit_to_cache(ctx)
             .await)
+    }
+
+    async fn ban(&self, ctx: &impl HasHttp) -> Result {
+        ctx.get_http()
+            .ban_user(self.server, self.user, None)
+            .await?;
+
+        Ok(())
+    }
+
+    async fn ban_with_reason(&self, ctx: &impl HasHttp, reason: &str) -> Result {
+        ctx.get_http()
+            .ban_user(self.server, self.user, Some(reason))
+            .await?;
+
+        Ok(())
+    }
+
+    async fn unban(&self, ctx: &impl HasHttp) -> Result {
+        ctx.get_http().unban_user(self.server, self.user).await?;
+
+        Ok(())
     }
 }
