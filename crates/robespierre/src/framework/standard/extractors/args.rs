@@ -286,7 +286,10 @@ impl Arg for Member {
 
         Box::pin(async move {
             let (user, _) = user_fut.await?;
-            let server = ch.server_id(&ctx).await?.ok_or(ParseMemberError::NotInServer)?;
+            let server = ch
+                .server_id(&ctx)
+                .await?
+                .ok_or(ParseMemberError::NotInServer)?;
 
             let member = server.member(&ctx, user).await?;
 
