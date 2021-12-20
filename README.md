@@ -6,7 +6,7 @@ A [revolt.chat][revolt] API wrapper.
 
 For examples, see the [examples directory](examples).
 
-For guides on how to use, see [the book](https://dblanovschi.github.io/robespierre).
+For guides on how to use, see [the book](https://dnbln.github.io/robespierre).
 
 ## Projects using robespierre
 
